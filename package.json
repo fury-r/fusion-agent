@@ -80,7 +80,7 @@
     "node": ">=18.0.0"
   },
   "repository": {
-    "type": "git",
-    "url": "https://github.com/fury-r/ai-agent-cli.git"
+  "type": "git",
+  "url": "git+https://github.com/fury-r/polyai-agent.git"
   }
 }
