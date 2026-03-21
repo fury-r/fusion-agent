@@ -1,6 +1,6 @@
 # polyai-agent
 
-An AI-powered **vibe coder**, **live service debugger**, and **agent session manager** — deployable to npm, usable as a CLI or importable library.
+An AI-powered **vibe coder**, **live service debugger**, and **agent session manager** deployable, usable as a CLI or importable library.
 
 Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming responses.
 
