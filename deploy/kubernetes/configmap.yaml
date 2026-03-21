@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-agent-cluster-monitor-config
+  labels:
+    app: ai-agent-cluster-monitor
+data:
+  cluster-rules.yaml: |
+    version: "1.0"
+
+    rules:
+      # What the agent is allowed to auto-fix without human approval
+      canAutoFix:
+        - id: restart-on-oom
+          name: Restart on OOM
+          description: Restart a pod killed due to Out-of-Memory
+          trigger: "OOMKilled|out of memory|killed"
+          action:
+            type: restart-pod
+          priority: 10
+
+        - id: restart-on-crash
+          name: Restart on crash
+          description: Restart a pod that exited with a non-zero code
+          trigger: "CrashLoopBackOff|exit code [1-9]|panic"
+          action:
+            type: restart-pod
+          priority: 8
+
+        - id: restart-on-connection-refused
+          name: Restart on connection refused
+          description: Restart a pod that cannot connect to its dependencies
+          trigger: "ECONNREFUSED|connection refused|dial tcp.*refused"
+          action:
+            type: restart-pod
+          priority: 5
+
+      # What the agent must NEVER do
+      avoid:
+        - id: avoid-delete-db
+          description: Do not delete databases, persistent volumes, or storage resources
+          pattern: "delete.*pv|delete.*pvc|drop.*database|truncate.*table"
+
+        - id: avoid-delete-secrets
+          description: Do not delete Kubernetes Secrets or ConfigMaps
+          pattern: "delete.*secret|delete.*configmap"
+
+        - id: avoid-scale-zero
+          description: Do not scale any deployment to zero replicas
+          pattern: "scale.*replicas.*0"
+
+        - id: avoid-delete-namespace
+          description: Never delete namespaces or cluster-level resources
+          pattern: "delete.*namespace"
+
+      requireApproval:
+        - database-migration
+        - config-change
+        - ai-fix
+
+    notifications:
+      slack:
+        enabled: false
+        webhookUrl: "https://hooks.slack.com/services/REPLACE/WITH/REAL"
+        channel: "#devops-alerts"
+      webhook:
+        enabled: false
+        url: "https://your-webhook.example.com/cluster-monitor"

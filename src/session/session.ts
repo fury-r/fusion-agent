@@ -1,0 +1,180 @@
+import { v4 as uuidv4 } from 'uuid';
+import { BaseProvider, Message, CompletionResult } from '../providers/base';
+import { Guardrail, guardrailsToSystemPrompt, checkFilePathGuardrails } from './guardrails';
+import { FileChange, createChange, applyChange, revertChange } from '../utils/file-ops';
+import { logger } from '../utils/logger';
+
+export interface SessionConfig {
+  name: string;
+  provider: string;
+  model: string;
+  speckit?: string;
+  guardrails?: Guardrail[];
+  projectDir?: string;
+  systemPrompt?: string;
+}
+
+export interface SessionTurn {
+  id: string;
+  timestamp: string;
+  userMessage: string;
+  assistantMessage: string;
+  fileChanges?: FileChange[];
+  usage?: CompletionResult['usage'];
+}
+
+export interface SessionData {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  config: SessionConfig;
+  turns: SessionTurn[];
+  status: 'active' | 'paused' | 'completed';
+}
+
+export class Session {
+  public readonly id: string;
+  public readonly name: string;
+  public config: SessionConfig;
+  private turns: SessionTurn[] = [];
+  private conversationHistory: Message[] = [];
+  private provider: BaseProvider;
+  public status: 'active' | 'paused' | 'completed' = 'active';
+  public readonly createdAt: Date;
+  public updatedAt: Date;
+
+  constructor(provider: BaseProvider, config: SessionConfig, existingData?: SessionData) {
+    this.provider = provider;
+    this.config = config;
+    this.createdAt = existingData ? new Date(existingData.createdAt) : new Date();
+    this.updatedAt = existingData ? new Date(existingData.updatedAt) : new Date();
+    this.id = existingData?.id || uuidv4();
+    this.name = existingData?.name || config.name;
+
+    if (existingData) {
+      this.turns = existingData.turns;
+      this.status = existingData.status;
+      // Rebuild conversation history
+      for (const turn of this.turns) {
+        this.conversationHistory.push({ role: 'user', content: turn.userMessage });
+        this.conversationHistory.push({ role: 'assistant', content: turn.assistantMessage });
+      }
+    }
+  }
+
+  private buildSystemPrompt(): string {
+    let systemPrompt = this.config.systemPrompt || 'You are a helpful AI coding assistant.';
+    const guardrailSuffix = guardrailsToSystemPrompt(this.config.guardrails || []);
+    if (guardrailSuffix) systemPrompt += guardrailSuffix;
+    return systemPrompt;
+  }
+
+  async chat(
+    userMessage: string,
+    options: {
+      stream?: boolean;
+      onChunk?: (chunk: string) => void;
+      maxTokens?: number;
+      temperature?: number;
+    } = {}
+  ): Promise<SessionTurn> {
+    if (this.status !== 'active') {
+      throw new Error(`Session "${this.name}" is not active (status: ${this.status})`);
+    }
+
+    this.conversationHistory.push({ role: 'user', content: userMessage });
+
+    const messages: Message[] = [
+      { role: 'system', content: this.buildSystemPrompt() },
+      ...this.conversationHistory,
+    ];
+
+    logger.debug(`Session ${this.id}: Sending message to ${this.config.provider}`);
+
+    const result = await this.provider.complete({
+      messages,
+      stream: options.stream ?? false,
+      onChunk: options.onChunk,
+      maxTokens: options.maxTokens,
+      temperature: options.temperature,
+    });
+
+    this.conversationHistory.push({ role: 'assistant', content: result.content });
+
+    const turn: SessionTurn = {
+      id: uuidv4(),
+      timestamp: new Date().toISOString(),
+      userMessage,
+      assistantMessage: result.content,
+      usage: result.usage,
+    };
+
+    this.turns.push(turn);
+    this.updatedAt = new Date();
+
+    return turn;
+  }
+
+  /**
+   * Apply file changes suggested by a turn, checking guardrails first.
+   */
+  applyFileChange(filePath: string, newContent: string): FileChange {
+    const violation = checkFilePathGuardrails(filePath, this.config.guardrails || []);
+    if (violation) {
+      throw new Error(`Guardrail violation: ${violation.message}`);
+    }
+    const change = createChange(filePath, newContent);
+    applyChange(change);
+    // Attach to last turn
+    const lastTurn = this.turns[this.turns.length - 1];
+    if (lastTurn) {
+      if (!lastTurn.fileChanges) lastTurn.fileChanges = [];
+      lastTurn.fileChanges.push(change);
+    }
+    return change;
+  }
+
+  /**
+   * Revert all file changes in a specific turn.
+   */
+  revertTurnChanges(turnId: string): void {
+    const turn = this.turns.find((t) => t.id === turnId);
+    if (!turn) throw new Error(`Turn ${turnId} not found`);
+    for (const change of turn.fileChanges || []) {
+      revertChange(change);
+    }
+  }
+
+  getTurns(): SessionTurn[] {
+    return this.turns;
+  }
+
+  getHistory(): Message[] {
+    return this.conversationHistory;
+  }
+
+  pause(): void {
+    this.status = 'paused';
+  }
+
+  resume(): void {
+    this.status = 'active';
+  }
+
+  complete(): void {
+    this.status = 'completed';
+  }
+
+  toJSON(): SessionData {
+    return {
+      id: this.id,
+      name: this.name,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+      config: this.config,
+      turns: this.turns,
+      status: this.status,
+    };
+  }
+}

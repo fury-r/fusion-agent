@@ -1,0 +1,102 @@
+# ── Kubernetes deployment for the AI cluster monitor ─────────────────────────
+#
+# Deploy with:
+#   kubectl apply -f deploy/kubernetes/
+#
+# Prerequisites:
+#   1. Build and push the image:
+#      docker build -f deploy/Dockerfile -t your-registry/ai-agent-cli:latest .
+#      docker push your-registry/ai-agent-cli:latest
+#   2. Create the secret with your API key:
+#      kubectl create secret generic ai-agent-secrets \
+#        --from-literal=OPENAI_API_KEY=sk-...
+#   3. Edit configmap.yaml with your actual rules.
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-agent-cluster-monitor
+  labels:
+    app: ai-agent-cluster-monitor
+    component: cluster-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-agent-cluster-monitor
+  template:
+    metadata:
+      labels:
+        app: ai-agent-cluster-monitor
+        component: cluster-monitor
+    spec:
+      serviceAccountName: ai-agent-cluster-monitor
+      containers:
+        - name: cluster-monitor
+          image: your-registry/ai-agent-cli:v1.0.0   # ← replace with your image and specific version tag
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: ai-agent-secrets
+          env:
+            - name: NODE_ENV
+              value: production
+          volumeMounts:
+            - name: rules-config
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            exec:
+              command: ["node", "-e", "process.exit(0)"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+      volumes:
+        - name: rules-config
+          configMap:
+            name: ai-agent-cluster-monitor-config
+      restartPolicy: Always
+
+---
+# ── Service account ────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-agent-cluster-monitor
+  labels:
+    app: ai-agent-cluster-monitor
+
+---
+# ── RBAC: allow reading pod logs and restarting deployments ───────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ai-agent-cluster-monitor
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "patch", "update"]   # patch/update for rollout restart
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ai-agent-cluster-monitor
+subjects:
+  - kind: ServiceAccount
+    name: ai-agent-cluster-monitor
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: ai-agent-cluster-monitor
+  apiGroup: rbac.authorization.k8s.io

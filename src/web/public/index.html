@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Agent CLI — Session Manager</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">🤖 AI Agent CLI</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#sessions" class="nav-item active" data-page="sessions">Sessions</a>
+        <a href="#settings" class="nav-item" data-page="settings">Settings</a>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <!-- Sessions Page -->
+      <section id="page-sessions" class="page active">
+        <div class="page-header">
+          <h1>Sessions</h1>
+          <button id="refresh-btn" class="btn btn-secondary">↻ Refresh</button>
+        </div>
+        <div id="sessions-list" class="sessions-list">
+          <div class="loading">Loading sessions…</div>
+        </div>
+      </section>
+
+      <!-- Session Detail Page -->
+      <section id="page-session-detail" class="page">
+        <div class="page-header">
+          <button id="back-btn" class="btn btn-ghost">← Back</button>
+          <h1 id="session-detail-title">Session</h1>
+          <div class="header-actions">
+            <button id="export-btn" class="btn btn-secondary">⬇ Export</button>
+            <button id="delete-btn" class="btn btn-danger">🗑 Delete</button>
+          </div>
+        </div>
+        <div id="session-detail-content"></div>
+      </section>
+
+      <!-- Settings Page -->
+      <section id="page-settings" class="page">
+        <div class="page-header">
+          <h1>Settings</h1>
+        </div>
+        <form id="settings-form" class="settings-form">
+          <div class="form-group">
+            <label for="provider">Default AI Provider</label>
+            <select id="provider" name="provider">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="model">Default Model</label>
+            <input type="text" id="model" name="model" placeholder="e.g. gpt-4o" />
+          </div>
+          <div class="form-group">
+            <label for="port">Web UI Port</label>
+            <input type="number" id="port" name="port" placeholder="3000" />
+          </div>
+          <div class="form-group">
+            <label for="logLevel">Log Level</label>
+            <select id="logLevel" name="logLevel">
+              <option value="info">info</option>
+              <option value="debug">debug</option>
+              <option value="warn">warn</option>
+              <option value="error">error</option>
+            </select>
+          </div>
+          <div class="form-group api-key-note">
+            <p>⚠️ API keys are configured via environment variables (<code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>) and are never stored in this interface.</p>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
