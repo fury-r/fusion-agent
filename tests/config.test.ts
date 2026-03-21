@@ -33,7 +33,7 @@ describe('config', () => {
       expect(() => saveConfig({ provider: 'gemini', port: 5000 })).not.toThrow();
 
       // Clean up saved config
-      const savedPath = path.join(os.homedir(), '.ai-agent-cli', 'config.json');
+      const savedPath = path.join(os.homedir(), '.agent-ai-cli', 'config.json');
       if (fs.existsSync(savedPath)) {
         try {
           const saved = JSON.parse(fs.readFileSync(savedPath, 'utf-8'));
