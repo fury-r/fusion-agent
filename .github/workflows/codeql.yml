@@ -50,13 +50,13 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
           upload: failure-only
-          output: ../codeql-results
+          output: ${{ github.workspace }}/codeql-results
 
       - name: Upload CodeQL SARIF results as artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: codeql-sarif-${{ matrix.language }}
-          path: ../codeql-results/
+          path: ${{ github.workspace }}/codeql-results/
           if-no-files-found: ignore
           retention-days: 30
