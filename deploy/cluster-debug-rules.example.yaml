@@ -1,0 +1,93 @@
+version: "1.0"
+
+# ── What the agent is allowed to auto-fix without human approval ────────────
+rules:
+  canAutoFix:
+    - id: restart-on-oom
+      name: Restart on OOM
+      description: Restart a pod that was killed due to Out-of-Memory
+      trigger: "OOMKilled|out of memory|killed"
+      action:
+        type: restart-pod
+      priority: 10
+      requireApproval: false
+
+    - id: restart-on-crash
+      name: Restart on crash
+      description: Restart a pod that exited with a non-zero code
+      trigger: "CrashLoopBackOff|exit code [1-9]|panic"
+      action:
+        type: restart-pod
+      priority: 8
+      requireApproval: false
+
+    - id: restart-on-connection-refused
+      name: Restart on connection refused
+      description: Restart a pod that cannot connect to its dependencies
+      trigger: "ECONNREFUSED|connection refused|dial tcp.*refused"
+      action:
+        type: restart-pod
+      priority: 5
+      requireApproval: false
+
+  # ── What the agent must NEVER do ──────────────────────────────────────────
+  avoid:
+    - id: avoid-delete-db
+      description: Do not delete databases, persistent volumes, or any storage resources
+      pattern: "delete.*pv|delete.*pvc|drop.*database|truncate.*table"
+
+    - id: avoid-delete-secrets
+      description: Do not delete Kubernetes Secrets or ConfigMaps
+      pattern: "delete.*secret|delete.*configmap"
+
+    - id: avoid-scale-zero
+      description: Do not scale any deployment to zero replicas
+      pattern: "scale.*replicas.*0"
+
+    - id: avoid-delete-namespace
+      description: Never delete namespaces or cluster-level resources
+      pattern: "delete.*namespace"
+
+    - id: avoid-all-at-once
+      description: Do not stop or delete all services simultaneously
+      pattern: "delete all|stop all|remove all"
+
+  # ── Action types that always require human approval ───────────────────────
+  requireApproval:
+    - database-migration
+    - config-change
+    - dependency-update
+    - ai-fix
+
+# ── Notification channels ────────────────────────────────────────────────────
+notifications:
+  slack:
+    enabled: false
+    webhookUrl: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    channel: "#devops-alerts"
+    username: "AI Cluster Monitor"
+
+  webhook:
+    enabled: false
+    url: "https://your-webhook.example.com/cluster-monitor"
+    method: "POST"
+    headers:
+      Authorization: "Bearer YOUR_TOKEN"
+
+  teams:
+    enabled: false
+    webhookUrl: "https://outlook.office.com/webhook/YOUR/WEBHOOK/URL"
+
+  pagerduty:
+    enabled: false
+    integrationKey: "YOUR_PAGERDUTY_INTEGRATION_KEY"
+    severity: "error"
+
+  email:
+    enabled: false
+    gatewayUrl: "https://api.sendgrid.com/v3/mail/send"
+    headers:
+      Authorization: "Bearer YOUR_SENDGRID_API_KEY"
+    to:
+      - "team@example.com"
+    from: "ai-agent-monitor@example.com"

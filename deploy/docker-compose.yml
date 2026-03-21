@@ -1,0 +1,48 @@
+version: "3.9"
+
+# ── Sample target services ────────────────────────────────────────────────────
+# Replace / remove these with your actual services.
+services:
+  # ── AI cluster monitor ─────────────────────────────────────────────────────
+  cluster-monitor:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: ai-agent-cli:latest
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      # Or use Anthropic / Gemini:
+      # ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      # AI_PROVIDER: "anthropic"
+      # AI_MODEL: "claude-3-5-sonnet-20241022"
+    volumes:
+      # Mount your custom rules file
+      - ./cluster-debug-rules.example.yaml:/config/cluster-rules.yaml:ro
+    command:
+      - "--config"
+      - "/config/cluster-rules.yaml"
+      - "--mode"
+      - "human-in-loop"
+      - "--service"
+      - "sample-app:log-file:/var/log/sample-app/app.log"
+    # Uncomment to watch a log file on the host
+    # volumes:
+    #   - /var/log/my-app:/var/log/sample-app:ro
+
+  # ── Sample service that produces logs (for local testing) ─────────────────
+  sample-app:
+    image: busybox:latest
+    restart: unless-stopped
+    command: >
+      sh -c "while true; do
+        echo \"$(date) INFO: request processed\";
+        sleep 2;
+        echo \"$(date) ERROR: connection refused to db:5432\";
+        sleep 5;
+      done"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

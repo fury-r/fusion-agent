@@ -16,6 +16,9 @@ import { createWebServer } from './web/server';
 import { createGuardrail } from './session/guardrails';
 import { Guardrail } from './session/guardrails';
 import { logger } from './utils/logger';
+import { ClusterMonitor } from './cluster-monitor/cluster-monitor';
+import { loadClusterRules, DEFAULT_CLUSTER_RULES } from './cluster-monitor/rules';
+import { ClusterMonitorConfig, ServiceTarget, MonitorMode } from './cluster-monitor/types';
 
 const program = new Command();
 
@@ -392,5 +395,153 @@ async function interactiveLoop(session: Session, sessionManager: SessionManager)
 
   rl.close();
 }
+
+// ── cluster-debug command ─────────────────────────────────────────────────────
+program
+  .command('cluster-debug')
+  .description('Monitor cluster services and auto-debug failures with AI assistance')
+  .option('-c, --config <file>', 'Path to cluster rules YAML/JSON config file')
+  .option('-s, --service <spec>', 'Service to monitor: name:type:target (can repeat)', collectArray, [])
+  .option('--all', 'Discover and monitor all deployments in the namespace', false)
+  .option('-n, --namespace <ns>', 'Kubernetes namespace', 'default')
+  .option('-m, --mode <mode>', 'Mode: auto-fix | notify-only | human-in-loop', 'human-in-loop')
+  .option('-p, --provider <provider>', 'AI provider (openai|anthropic|gemini)')
+  .option('--model <model>', 'Model name')
+  .option('--batch-size <n>', 'Log lines before AI analysis (default: 20)', '20')
+  .option('--max-wait <s>', 'Max seconds before flushing partial batch (default: 30)', '30')
+  .action(async (opts) => {
+    const config = loadConfig({ provider: opts.provider, model: opts.model });
+
+    if (!config.apiKey) {
+      console.error(chalk.red(`✗ No API key found for provider "${config.provider}".`));
+      console.error(chalk.yellow(`  Set ${providerEnvVar(config.provider)} environment variable.`));
+      process.exit(1);
+    }
+
+    // Load rules file if provided
+    let clusterCfg: ClusterMonitorConfig;
+    if (opts.config) {
+      try {
+        const rulesFile = loadClusterRules(opts.config);
+        clusterCfg = {
+          services: [],
+          provider: config.provider,
+          model: config.model,
+          apiKey: config.apiKey!,
+          rules: rulesFile.rules,
+          notifications: rulesFile.notifications,
+          mode: (opts.mode as MonitorMode) || 'human-in-loop',
+          monitorAll: opts.all,
+          namespace: opts.namespace,
+          batchSize: parseInt(opts.batchSize, 10),
+          maxWaitSeconds: parseInt(opts.maxWait, 10),
+        };
+      } catch (err) {
+        console.error(chalk.red(`✗ Failed to load rules file: ${err instanceof Error ? err.message : err}`));
+        process.exit(1);
+      }
+    } else {
+      clusterCfg = {
+        services: [],
+        provider: config.provider,
+        model: config.model,
+        apiKey: config.apiKey!,
+        rules: DEFAULT_CLUSTER_RULES,
+        mode: (opts.mode as MonitorMode) || 'human-in-loop',
+        monitorAll: opts.all,
+        namespace: opts.namespace,
+        batchSize: parseInt(opts.batchSize, 10),
+        maxWaitSeconds: parseInt(opts.maxWait, 10),
+      };
+    }
+
+    // Parse --service name:type:target specs
+    for (const spec of opts.service as string[]) {
+      const parts = spec.split(':');
+      if (parts.length < 3) {
+        console.error(chalk.red(`✗ Invalid --service spec "${spec}". Expected name:type:target`));
+        process.exit(1);
+      }
+      const [name, type, ...targetParts] = parts;
+      const target = targetParts.join(':');
+      let svc: ServiceTarget;
+
+      if (type === 'kubernetes') {
+        svc = { name, connection: { type: 'kubernetes', selector: target, namespace: opts.namespace } };
+      } else if (type === 'log-file') {
+        svc = { name, connection: { type: 'log-file', filePath: target } };
+      } else if (type === 'docker') {
+        svc = { name, connection: { type: 'docker', container: target } };
+      } else if (type === 'process') {
+        svc = { name, connection: { type: 'process', command: target } };
+      } else if (type === 'http') {
+        svc = { name, connection: { type: 'http-poll', url: target } };
+      } else {
+        console.error(chalk.red(`✗ Unknown service type "${type}". Use: kubernetes|log-file|docker|process|http`));
+        process.exit(1);
+      }
+      clusterCfg.services.push(svc);
+    }
+
+    if (!clusterCfg.services.length && !clusterCfg.monitorAll) {
+      console.error(chalk.red('✗ No services specified. Use --service or --all.'));
+      console.error(chalk.yellow('  Example: ai-agent cluster-debug --service api:kubernetes:deployment/api'));
+      process.exit(1);
+    }
+
+    // Build session
+    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.ai-agent-cli', 'sessions');
+    const sessionManager = new SessionManager(sessionsDir);
+    const speckit = SPECKITS['cluster-debugger'];
+    const session = sessionManager.createSession(
+      {
+        name: `cluster-debug-${Date.now()}`,
+        provider: config.provider,
+        model: config.model || '',
+        speckit: 'cluster-debugger',
+        systemPrompt: speckit?.systemPrompt,
+        guardrails: [],
+        projectDir: process.cwd(),
+      },
+      config.apiKey
+    );
+
+    const monitor = new ClusterMonitor(clusterCfg, session);
+
+    monitor.on('failure', (f) => {
+      logger.debug(`Failure detected in ${f.serviceName}: ${f.errorSummary}`);
+    });
+    monitor.on('analysis', (f) => {
+      logger.debug(`Analysis complete for ${f.serviceName}`);
+    });
+    monitor.on('fix-applied', (f, result) => {
+      if (result.success) {
+        console.log(chalk.green(`\n✅ Fix applied for ${f.serviceName}: ${result.output || result.action}`));
+      }
+    });
+
+    console.log(chalk.cyan(`\n🔍 Cluster debug monitor starting in ${chalk.bold(clusterCfg.mode)} mode…`));
+    if (clusterCfg.services.length) {
+      console.log(chalk.dim(`   Services: ${clusterCfg.services.map((s) => s.name).join(', ')}`));
+    }
+    if (clusterCfg.monitorAll) {
+      console.log(chalk.dim(`   Namespace: ${clusterCfg.namespace}`));
+    }
+    console.log(chalk.dim('   Press Ctrl+C to stop.\n'));
+
+    await monitor.start();
+
+    process.on('SIGINT', () => {
+      monitor.stop();
+      process.exit(0);
+    });
+    process.on('SIGTERM', () => {
+      monitor.stop();
+      process.exit(0);
+    });
+
+    // Keep alive
+    await new Promise<void>(() => { /* resolved by SIGINT/SIGTERM */ });
+  });
 
 program.parse(process.argv);

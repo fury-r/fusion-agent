@@ -4,6 +4,8 @@ export * from './session';
 export * from './speckits';
 export { LiveDebugger, LogWatcher, ServiceConnector } from './live-debugger';
 export type { LiveDebuggerOptions, ServiceConnectionOptions } from './live-debugger';
+export { ClusterMonitor, RemediationEngine, NotificationManager, KubernetesConnector, discoverServices, loadClusterRules, validateClusterRules, findMatchingRule, avoidanceRulesToSystemPrompt, DEFAULT_CLUSTER_RULES } from './cluster-monitor';
+export type { ClusterMonitorConfig, ServiceTarget, AllServiceConnectionOptions, KubernetesConnectionOptions, LogFileConnectionOptions, MonitorMode, ClusterRules, RemediationRule, RemediationAction, AvoidanceRule, NotificationConfig, DetectedFailure, HITLRequest, HITLResponse, ClusterRulesFile, RemediationResult, NotificationMessage } from './cluster-monitor';
 export { createWebServer } from './web/server';
 export { loadConfig, saveConfig } from './utils/config';
 export type { AIAgentConfig, GuardrailConfig } from './utils/config';
