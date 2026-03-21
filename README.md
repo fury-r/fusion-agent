@@ -20,6 +20,117 @@ Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming respons
 
 ---
 
+## Architecture & Flow
+
+### High-Level Architecture
+
+```mermaid
+flowchart TD
+    User([👤 User]) --> CLI["CLI\n<code>ai-agent</code>"]
+    User --> LibAPI["Library API\n<code>import { AgentCLI }</code>"]
+
+    CLI --> Chat["<code>chat</code>\nvibe-coder / speckit"]
+    CLI --> Debug["<code>debug</code>\nLive Debugger"]
+    CLI --> UI["<code>ui</code>\nWeb Dashboard"]
+    CLI --> SessionCmd["<code>session</code>\nSession Manager"]
+    CLI --> Speckit["<code>speckit</code>\nSpeckit Browser"]
+    CLI --> Config["<code>config</code>\nConfiguration"]
+
+    Chat --> SM[Session Manager]
+    LibAPI --> SM
+
+    SM --> Guardrails[🛡 Guardrails]
+    SM --> SpeckitConf[📦 Speckit Config]
+    SM --> Providers
+
+    Debug --> LiveDbg[Live Debugger]
+    LiveDbg --> Providers
+    LiveDbg --> LogSrc[Log Sources]
+
+    LogSrc --> LogFile[📄 Log File]
+    LogSrc --> DockerSrc[🐳 Docker Container]
+    LogSrc --> ProcSrc[⚙️ Process / Command]
+    LogSrc --> HTTPSrc[🌐 HTTP Poll]
+
+    Providers[AI Providers] --> OpenAI[OpenAI]
+    Providers --> Anthropic[Anthropic]
+    Providers --> Gemini[Google Gemini]
+
+    SM --> Storage[(💾 &lt;home&gt;/.polyai-agent/\nsessions)]
+
+    UI --> WebServer["Express + Socket.IO\nWeb Server"]
+    WebServer --> SM
+    SessionCmd --> SM
+```
+
+---
+
+### Chat Session Flow
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant CLI as CLI
+    participant SM as Session Manager
+    participant SK as Speckit
+    participant G as Guardrails
+    participant P as AI Provider
+
+    U->>CLI: ai-agent chat --speckit vibe-coder --session my-project
+    CLI->>SM: Create or resume session "my-project"
+    SM->>SK: Load speckit system prompt (vibe-coder)
+    SM->>G: Inject guardrail rules into system prompt
+
+    loop Interactive conversation
+        U->>CLI: Enter message / code request
+        CLI->>P: Send (system prompt + history + message)
+        P-->>CLI: Stream response tokens
+        CLI-->>U: Display streamed response
+        CLI->>SM: Record turn + any file changes
+    end
+
+    U->>CLI: /exit
+    CLI->>SM: Persist session to <home>/.polyai-agent/sessions/
+    SM-->>U: Session saved ✓
+```
+
+---
+
+### Live Debugger Flow
+
+```mermaid
+flowchart LR
+    subgraph Sources["Log Sources"]
+        LF[📄 Log File]
+        DC[🐳 Docker Logs]
+        PR[⚙️ Process stdout]
+        HP[🌐 HTTP Health Poll]
+    end
+
+    subgraph Debugger["Live Debugger"]
+        Collector[Log Collector]
+        Batcher["Batch Buffer\n(configurable size)"]
+        Analyzer[AI Analysis]
+    end
+
+    subgraph Output["Output"]
+        Terminal[Terminal / onAnalysis callback]
+        Session[Session Turn Record]
+    end
+
+    LF --> Collector
+    DC --> Collector
+    PR --> Collector
+    HP --> Collector
+
+    Collector --> Batcher
+    Batcher -->|"batch full or timeout"| Analyzer
+    Analyzer -->|AI Provider| Terminal
+    Analyzer --> Session
+```
+
+---
+
 ## Installation
 
 ```bash
