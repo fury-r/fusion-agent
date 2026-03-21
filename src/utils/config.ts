@@ -24,17 +24,17 @@ const DEFAULT_CONFIG: AIAgentConfig = {
   provider: 'openai',
   model: undefined,
   port: 3000,
-  sessionDir: path.join(os.homedir(), '.ai-agent-cli', 'sessions'),
+  sessionDir: path.join(os.homedir(), '.polyai-agent', 'sessions'),
   guardrails: [],
   logLevel: 'info',
 };
 
 function getConfigPaths(): string[] {
   return [
-    path.join(process.cwd(), '.ai-agent-cli.json'),
-    path.join(process.cwd(), '.ai-agent-cli.yaml'),
-    path.join(os.homedir(), '.ai-agent-cli', 'config.json'),
-    path.join(os.homedir(), '.ai-agent-cli', 'config.yaml'),
+    path.join(process.cwd(), '.polyai-agent.json'),
+    path.join(process.cwd(), '.polyai-agent.yaml'),
+    path.join(os.homedir(), '.polyai-agent', 'config.json'),
+    path.join(os.homedir(), '.polyai-agent', 'config.yaml'),
   ];
 }
 
@@ -100,7 +100,7 @@ export function loadConfig(overrides: Partial<AIAgentConfig> = {}): AIAgentConfi
 }
 
 export function saveConfig(config: Partial<AIAgentConfig>): void {
-  const configDir = path.join(os.homedir(), '.ai-agent-cli');
+  const configDir = path.join(os.homedir(), '.polyai-agent');
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }

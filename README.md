@@ -1,4 +1,4 @@
-# ai-agent-cli
+# polyai-agent
 
 An AI-powered **vibe coder**, **live service debugger**, and **agent session manager** — deployable to npm, usable as a CLI or importable library.
 
@@ -24,10 +24,10 @@ Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming respons
 
 ```bash
 # Global install (recommended for CLI use)
-npm install -g ai-agent-cli
+npm install -g polyai-agent
 
 # Dev dependency (for programmatic use)
-npm install --save-dev ai-agent-cli
+npm install --save-dev polyai-agent
 ```
 
 ---
@@ -193,7 +193,7 @@ ai-agent chat \
 ### Guardrail types (programmatic API)
 
 ```typescript
-import { createGuardrail } from 'ai-agent-cli';
+import { createGuardrail } from 'polyai-agent';
 
 createGuardrail('allow-paths', ['./src', './tests'])
 createGuardrail('deny-paths', ['./node_modules', './.env'])
@@ -207,7 +207,7 @@ createGuardrail('custom', 'Always add JSDoc to exported functions')
 
 ## Configuration File
 
-Create `.ai-agent-cli.json` in your project root:
+Create `.polyai-agent.json` in your project root:
 
 ```json
 {
@@ -220,7 +220,7 @@ Create `.ai-agent-cli.json` in your project root:
 }
 ```
 
-Or `~/.ai-agent-cli/config.json` for global settings.
+Or `~/.polyai-agent/config.json` for global settings.
 
 **API keys are never stored in config files** — use environment variables:
 
@@ -238,7 +238,7 @@ AI_AGENT_PORT=3000
 ## Library / Programmatic API
 
 ```typescript
-import { AgentCLI, createGuardrail } from 'ai-agent-cli';
+import { AgentCLI, createGuardrail } from 'polyai-agent';
 
 // Create an agent instance
 const agent = new AgentCLI({
@@ -277,7 +277,7 @@ agent.sessionManager.persistSession(session);
 ### Live Debugger API
 
 ```typescript
-import { AgentCLI, LiveDebugger } from 'ai-agent-cli';
+import { AgentCLI, LiveDebugger } from 'polyai-agent';
 
 const agent = new AgentCLI({ provider: 'openai' });
 const session = agent.createSession({ name: 'debug', speckit: 'debugger' });
@@ -304,7 +304,7 @@ process.on('SIGINT', () => debugger_.stop());
 ### Web Server API
 
 ```typescript
-import { AgentCLI, createWebServer } from 'ai-agent-cli';
+import { AgentCLI, createWebServer } from 'polyai-agent';
 
 const agent = new AgentCLI({ provider: 'openai' });
 const server = createWebServer({ port: 3000, sessionManager: agent.sessionManager });

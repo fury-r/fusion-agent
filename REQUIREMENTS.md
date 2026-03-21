@@ -1,7 +1,7 @@
 # AI Agent CLI — Requirements Document
 
 ## Overview
-**ai-agent-cli** is an npm-deployable TypeScript tool that integrates with top AI providers and acts as a _vibe coder_, session manager, live-service debugger, and provides a Web UI for managing AI agent sessions.
+**polyai-agent** is an npm-deployable TypeScript tool that integrates with top AI providers and acts as a _vibe coder_, session manager, live-service debugger, and provides a Web UI for managing AI agent sessions.
 
 ---
 
@@ -46,7 +46,7 @@ Speckits are pre-configured agent configurations (similar to GitHub speckit conc
 - Create named agent sessions with unique IDs
 - Persist session history (conversation, files changed, fixes applied)
 - Resume interrupted sessions
-- Sessions stored in `~/.ai-agent-cli/sessions/`
+- Sessions stored in `~/.polyai-agent/sessions/`
 - Session export to JSON
 
 ### 1.6 Guardrails & Rules
@@ -56,7 +56,7 @@ Configurable per-session rules that the AI must follow or must not violate:
 - **Max tokens / cost limit**: cap spending per session
 - **Style rules**: enforce coding style (language, framework, patterns)
 - **Custom rules**: free-text rules injected into system prompt
-- Rules defined in `.ai-agent-cli.json` or per-session config
+- Rules defined in `.polyai-agent.json` or per-session config
 
 ### 1.7 Web UI
 - Built-in Express + Socket.IO web server
@@ -89,7 +89,7 @@ Options:
 
 ### 1.9 Library / Programmatic API
 ```typescript
-import { AgentCLI, Session, providers, speckits } from 'ai-agent-cli';
+import { AgentCLI, Session, providers, speckits } from 'polyai-agent';
 
 const agent = new AgentCLI({ provider: 'openai', model: 'gpt-4o' });
 const session = await agent.createSession({ name: 'my-session', guardrails: [...] });
@@ -104,7 +104,7 @@ const response = await session.chat('Refactor this function...');
 - **Node.js**: >=18.0.0
 - **Streaming**: All AI calls support streaming output
 - **Security**: API keys never logged or stored in plaintext in session files
-- **Configuration**: `.ai-agent-cli.json` in project root or `~/.ai-agent-cli/config.json`
+- **Configuration**: `.polyai-agent.json` in project root or `~/.polyai-agent/config.json`
 - **Error handling**: Graceful fallback, meaningful error messages
 - **Extensibility**: Provider and speckit plug-in architecture
 
@@ -152,7 +152,7 @@ src/
 
 ## 4. Deployment
 
-- Published to **npm** as `ai-agent-cli`
-- Global install: `npm install -g ai-agent-cli`
-- Local dev dependency: `npm install --save-dev ai-agent-cli`
+- Published to **npm** as `polyai-agent`
+- Global install: `npm install -g polyai-agent`
+- Local dev dependency: `npm install --save-dev polyai-agent`
 - Binary: `ai-agent` (aliased as `aac`)

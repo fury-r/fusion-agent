@@ -25,7 +25,7 @@ export interface AgentCLIOptions extends Partial<AIAgentConfig> {
 }
 
 /**
- * Main programmatic API for ai-agent-cli.
+ * Main programmatic API for polyai-agent.
  */
 export class AgentCLI {
   private config: AIAgentConfig;
@@ -33,7 +33,7 @@ export class AgentCLI {
 
   constructor(options: AgentCLIOptions = {}) {
     this.config = loadConfig(options);
-    const sessionsDir = options.sessionsDir || this.config.sessionDir || path.join(os.homedir(), '.ai-agent-cli', 'sessions');
+    const sessionsDir = options.sessionsDir || this.config.sessionDir || path.join(os.homedir(), '.polyai-agent', 'sessions');
     this.sessionManager = new SessionManager(sessionsDir);
   }
 
