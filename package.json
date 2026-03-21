@@ -1,5 +1,5 @@
 {
-  "name": "agent-ai-cli",
+  "name": "polyai-agent",
   "version": "1.0.0",
   "description": "AI-powered vibe coder, live debugger, and agent session manager — supports OpenAI, Anthropic, and Google Gemini",
   "main": "dist/index.js",

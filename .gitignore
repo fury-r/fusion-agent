@@ -4,6 +4,6 @@ dist/
 .env
 .env.*
 !.env.example
-~/.agent-ai-cli/
+~/.polyai-agent/
 *.tsbuildinfo
 coverage/
