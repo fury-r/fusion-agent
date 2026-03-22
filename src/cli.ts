@@ -59,7 +59,7 @@ program
       createGuardrail('custom', r)
     );
 
-    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.polyai-agent', 'sessions');
+    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.vibe-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
     const provider = createProvider({ provider: config.provider, model: config.model, apiKey: config.apiKey });
 
@@ -155,7 +155,7 @@ program
       process.exit(1);
     }
 
-    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.polyai-agent', 'sessions');
+    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.vibe-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
     const session = sessionManager.createSession(
       {
@@ -210,7 +210,7 @@ program
   .option('-e, --export <id>', 'Export a session as JSON')
   .action((opts) => {
     const config = loadConfig();
-    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.polyai-agent', 'sessions');
+    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.vibe-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
 
     if (opts.list || (!opts.delete && !opts.export)) {
@@ -253,7 +253,7 @@ program
   .option('--port <port>', 'Port to listen on', '3000')
   .action(async (opts) => {
     const config = loadConfig({ port: parseInt(opts.port, 10) });
-    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.polyai-agent', 'sessions');
+    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.vibe-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
 
     const server = createWebServer({ port: config.port, sessionManager });
@@ -490,7 +490,7 @@ program
     }
 
     // Build session
-    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.polyai-agent', 'sessions');
+    const sessionsDir = config.sessionDir || path.join(os.homedir(), '.vibe-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
     const speckit = SPECKITS['cluster-debugger'];
     const session = sessionManager.createSession(

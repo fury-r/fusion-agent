@@ -5,8 +5,8 @@
 #
 # Prerequisites:
 #   1. Build and push the image:
-#      docker build -f deploy/Dockerfile -t your-registry/polyai-agent:latest .
-#      docker push your-registry/polyai-agent:latest
+#      docker build -f deploy/Dockerfile -t your-registry/vibe-agent:latest .
+#      docker push your-registry/vibe-agent:latest
 #   2. Create the secret with your API key:
 #      kubectl create secret generic ai-agent-secrets \
 #        --from-literal=OPENAI_API_KEY=sk-...
@@ -34,7 +34,7 @@ spec:
       serviceAccountName: ai-agent-cluster-monitor
       containers:
         - name: cluster-monitor
-          image: your-registry/polyai-agent:v1.0.0   # ← replace with your image and specific version tag
+          image: your-registry/vibe-agent:v1.0.0   # ← replace with your image and specific version tag
           imagePullPolicy: Always
           envFrom:
             - secretRef:

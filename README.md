@@ -1,4 +1,7 @@
-# polyai-agent
+# vibe-agent
+
+> ⚠️ **Package renamed:** The previous npm package `polyai-agent` has been deprecated and replaced by **`vibe-agent`**.  
+> Please install the new package: `npm install -g vibe-agent`
 
 An AI-powered **vibe coder**, **live service debugger**, and **agent session manager** deployable, usable as a CLI or importable library.
 
@@ -56,7 +59,7 @@ flowchart TD
     Providers --> Anthropic[Anthropic]
     Providers --> Gemini[Google Gemini]
 
-    SM --> Storage[(💾 &lt;home&gt;/.polyai-agent/\nsessions)]
+    SM --> Storage[(💾 &lt;home&gt;/.vibe-agent/\nsessions)]
 
     UI --> WebServer["Express + Socket.IO\nWeb Server"]
     WebServer --> SM
@@ -90,7 +93,7 @@ sequenceDiagram
     end
 
     U->>CLI: /exit
-    CLI->>SM: Persist session to <home>/.polyai-agent/sessions/
+    CLI->>SM: Persist session to <home>/.vibe-agent/sessions/
     SM-->>U: Session saved ✓
 ```
 
@@ -135,10 +138,10 @@ flowchart LR
 
 ```bash
 # Global install (recommended for CLI use)
-npm install -g polyai-agent
+npm install -g vibe-agent
 
 # Dev dependency (for programmatic use)
-npm install --save-dev polyai-agent
+npm install --save-dev vibe-agent
 ```
 
 ---
@@ -304,7 +307,7 @@ ai-agent chat \
 ### Guardrail types (programmatic API)
 
 ```typescript
-import { createGuardrail } from 'polyai-agent';
+import { createGuardrail } from 'vibe-agent';
 
 createGuardrail('allow-paths', ['./src', './tests'])
 createGuardrail('deny-paths', ['./node_modules', './.env'])
@@ -318,7 +321,7 @@ createGuardrail('custom', 'Always add JSDoc to exported functions')
 
 ## Configuration File
 
-Create `.polyai-agent.json` in your project root:
+Create `.vibe-agent.json` in your project root:
 
 ```json
 {
@@ -331,7 +334,7 @@ Create `.polyai-agent.json` in your project root:
 }
 ```
 
-Or `~/.polyai-agent/config.json` for global settings.
+Or `~/.vibe-agent/config.json` for global settings.
 
 **API keys are never stored in config files** — use environment variables:
 
@@ -349,7 +352,7 @@ AI_AGENT_PORT=3000
 ## Library / Programmatic API
 
 ```typescript
-import { AgentCLI, createGuardrail } from 'polyai-agent';
+import { AgentCLI, createGuardrail } from 'vibe-agent';
 
 // Create an agent instance
 const agent = new AgentCLI({
@@ -388,7 +391,7 @@ agent.sessionManager.persistSession(session);
 ### Live Debugger API
 
 ```typescript
-import { AgentCLI, LiveDebugger } from 'polyai-agent';
+import { AgentCLI, LiveDebugger } from 'vibe-agent';
 
 const agent = new AgentCLI({ provider: 'openai' });
 const session = agent.createSession({ name: 'debug', speckit: 'debugger' });
@@ -415,7 +418,7 @@ process.on('SIGINT', () => debugger_.stop());
 ### Web Server API
 
 ```typescript
-import { AgentCLI, createWebServer } from 'polyai-agent';
+import { AgentCLI, createWebServer } from 'vibe-agent';
 
 const agent = new AgentCLI({ provider: 'openai' });
 const server = createWebServer({ port: 3000, sessionManager: agent.sessionManager });
