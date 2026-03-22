@@ -1,6 +1,6 @@
 {
-  "name": "polyai-agent",
-  "version": "1.0.1",
+  "name": "fusion-agent",
+  "version": "1.1.0",
   "description": "AI-powered vibe coder, live debugger, and agent session manager — supports OpenAI, Anthropic, and Google Gemini",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -81,6 +81,6 @@
   },
   "repository": {
   "type": "git",
-  "url": "git+https://github.com/fury-r/polyai-agent.git"
+  "url": "git+https://github.com/fury-r/fusion-agent.git"
   }
 }
