@@ -1,7 +1,7 @@
 # AI Agent CLI — Requirements Document
 
 ## Overview
-**vibe-agent** is an npm-deployable TypeScript tool that integrates with top AI providers and acts as a _vibe coder_, session manager, live-service debugger, and provides a Web UI for managing AI agent sessions.
+**fusion-agent** is an npm-deployable TypeScript tool that integrates with top AI providers and acts as a _vibe coder_, session manager, live-service debugger, and provides a Web UI for managing AI agent sessions.
 
 ---
 
@@ -46,7 +46,7 @@ Speckits are pre-configured agent configurations (similar to GitHub speckit conc
 - Create named agent sessions with unique IDs
 - Persist session history (conversation, files changed, fixes applied)
 - Resume interrupted sessions
-- Sessions stored in `~/.vibe-agent/sessions/`
+- Sessions stored in `~/.fusion-agent/sessions/`
 - Session export to JSON
 
 ### 1.6 Guardrails & Rules
@@ -56,7 +56,7 @@ Configurable per-session rules that the AI must follow or must not violate:
 - **Max tokens / cost limit**: cap spending per session
 - **Style rules**: enforce coding style (language, framework, patterns)
 - **Custom rules**: free-text rules injected into system prompt
-- Rules defined in `.vibe-agent.json` or per-session config
+- Rules defined in `.fusion-agent.json` or per-session config
 
 ### 1.7 Web UI
 - Built-in Express + Socket.IO web server
@@ -89,7 +89,7 @@ Options:
 
 ### 1.9 Library / Programmatic API
 ```typescript
-import { AgentCLI, Session, providers, speckits } from 'vibe-agent';
+import { AgentCLI, Session, providers, speckits } from 'fusion-agent';
 
 const agent = new AgentCLI({ provider: 'openai', model: 'gpt-4o' });
 const session = await agent.createSession({ name: 'my-session', guardrails: [...] });
@@ -104,7 +104,7 @@ const response = await session.chat('Refactor this function...');
 - **Node.js**: >=18.0.0
 - **Streaming**: All AI calls support streaming output
 - **Security**: API keys never logged or stored in plaintext in session files
-- **Configuration**: `.vibe-agent.json` in project root or `~/.vibe-agent/config.json`
+- **Configuration**: `.fusion-agent.json` in project root or `~/.fusion-agent/config.json`
 - **Error handling**: Graceful fallback, meaningful error messages
 - **Extensibility**: Provider and speckit plug-in architecture
 
@@ -152,7 +152,7 @@ src/
 
 ## 4. Deployment
 
-- Published to **npm** as `vibe-agent`
-- Global install: `npm install -g vibe-agent`
-- Local dev dependency: `npm install --save-dev vibe-agent`
+- Published to **npm** as `fusion-agent`
+- Global install: `npm install -g fusion-agent`
+- Local dev dependency: `npm install --save-dev fusion-agent`
 - Binary: `ai-agent` (aliased as `aac`)

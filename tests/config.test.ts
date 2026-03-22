@@ -33,7 +33,7 @@ describe('config', () => {
       expect(() => saveConfig({ provider: 'gemini', port: 5000 })).not.toThrow();
 
       // Clean up saved config
-      const savedPath = path.join(os.homedir(), '.vibe-agent', 'config.json');
+      const savedPath = path.join(os.homedir(), '.fusion-agent', 'config.json');
       if (fs.existsSync(savedPath)) {
         try {
           const saved = JSON.parse(fs.readFileSync(savedPath, 'utf-8'));

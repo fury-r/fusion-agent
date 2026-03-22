@@ -1,7 +1,7 @@
-# vibe-agent
+# fusion-agent
 
-> ⚠️ **Package renamed:** The previous npm package `polyai-agent` has been deprecated and replaced by **`vibe-agent`**.  
-> Please install the new package: `npm install -g vibe-agent`
+> ⚠️ **Package renamed:** The previous npm package `polyai-agent` has been deprecated and replaced by **`fusion-agent`**.  
+> Please install the new package: `npm install -g fusion-agent`
 
 An AI-powered **vibe coder**, **live service debugger**, and **agent session manager** deployable, usable as a CLI or importable library.
 
@@ -59,7 +59,7 @@ flowchart TD
     Providers --> Anthropic[Anthropic]
     Providers --> Gemini[Google Gemini]
 
-    SM --> Storage[(💾 &lt;home&gt;/.vibe-agent/\nsessions)]
+    SM --> Storage[(💾 &lt;home&gt;/.fusion-agent/\nsessions)]
 
     UI --> WebServer["Express + Socket.IO\nWeb Server"]
     WebServer --> SM
@@ -93,7 +93,7 @@ sequenceDiagram
     end
 
     U->>CLI: /exit
-    CLI->>SM: Persist session to <home>/.vibe-agent/sessions/
+    CLI->>SM: Persist session to <home>/.fusion-agent/sessions/
     SM-->>U: Session saved ✓
 ```
 
@@ -138,10 +138,10 @@ flowchart LR
 
 ```bash
 # Global install (recommended for CLI use)
-npm install -g vibe-agent
+npm install -g fusion-agent
 
 # Dev dependency (for programmatic use)
-npm install --save-dev vibe-agent
+npm install --save-dev fusion-agent
 ```
 
 ---
@@ -307,7 +307,7 @@ ai-agent chat \
 ### Guardrail types (programmatic API)
 
 ```typescript
-import { createGuardrail } from 'vibe-agent';
+import { createGuardrail } from 'fusion-agent';
 
 createGuardrail('allow-paths', ['./src', './tests'])
 createGuardrail('deny-paths', ['./node_modules', './.env'])
@@ -321,7 +321,7 @@ createGuardrail('custom', 'Always add JSDoc to exported functions')
 
 ## Configuration File
 
-Create `.vibe-agent.json` in your project root:
+Create `.fusion-agent.json` in your project root:
 
 ```json
 {
@@ -334,7 +334,7 @@ Create `.vibe-agent.json` in your project root:
 }
 ```
 
-Or `~/.vibe-agent/config.json` for global settings.
+Or `~/.fusion-agent/config.json` for global settings.
 
 **API keys are never stored in config files** — use environment variables:
 
@@ -352,7 +352,7 @@ AI_AGENT_PORT=3000
 ## Library / Programmatic API
 
 ```typescript
-import { AgentCLI, createGuardrail } from 'vibe-agent';
+import { AgentCLI, createGuardrail } from 'fusion-agent';
 
 // Create an agent instance
 const agent = new AgentCLI({
@@ -391,7 +391,7 @@ agent.sessionManager.persistSession(session);
 ### Live Debugger API
 
 ```typescript
-import { AgentCLI, LiveDebugger } from 'vibe-agent';
+import { AgentCLI, LiveDebugger } from 'fusion-agent';
 
 const agent = new AgentCLI({ provider: 'openai' });
 const session = agent.createSession({ name: 'debug', speckit: 'debugger' });
@@ -418,7 +418,7 @@ process.on('SIGINT', () => debugger_.stop());
 ### Web Server API
 
 ```typescript
-import { AgentCLI, createWebServer } from 'vibe-agent';
+import { AgentCLI, createWebServer } from 'fusion-agent';
 
 const agent = new AgentCLI({ provider: 'openai' });
 const server = createWebServer({ port: 3000, sessionManager: agent.sessionManager });
