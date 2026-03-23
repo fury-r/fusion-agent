@@ -14,6 +14,7 @@
       </div>
       <nav class="sidebar-nav">
         <a href="#sessions" class="nav-item active" data-page="sessions">Sessions</a>
+        <a href="#vibe-coder" class="nav-item" data-page="vibe-coder">⚡ Vibe Coder</a>
         <a href="#settings" class="nav-item" data-page="settings">Settings</a>
       </nav>
     </aside>
@@ -80,7 +81,141 @@
           <button type="submit" class="btn btn-primary">Save Settings</button>
         </form>
       </section>
+      <!-- Vibe Coder Page -->
+      <section id="page-vibe-coder" class="page vibe-page">
+
+        <!-- Header bar -->
+        <div class="vibe-header">
+          <div class="session-bar">
+            <input type="text" id="vibe-session-name" class="vibe-input-sm" placeholder="Session name…" style="width:180px" />
+            <input type="text" id="vibe-project-dir" class="vibe-input-sm" placeholder="Project directory…" />
+            <button id="vibe-new-session-btn" class="btn btn-primary btn-sm">New Session</button>
+          </div>
+          <div class="vibe-tabs">
+            <button class="btn vibe-tab-btn active" data-tab="chat">💬 Chat</button>
+            <button class="btn vibe-tab-btn" data-tab="autonomous">🤖 Autonomous</button>
+          </div>
+          <span id="vibe-status-pill" class="status-pill status-idle">idle</span>
+        </div>
+
+        <!-- Chat tab -->
+        <div id="vibe-tab-chat" class="vibe-tab-content active">
+          <div class="vibe-chat-workspace">
+
+            <!-- Left: chat panel -->
+            <div class="vibe-chat-panel">
+              <div id="vibe-messages" class="vibe-messages"></div>
+              <div class="vibe-input-bar">
+                <button id="vibe-context-btn" class="btn btn-secondary btn-icon" title="Inject context">📁</button>
+                <textarea id="vibe-input" class="vibe-textarea" placeholder="Type a message… (Ctrl+Enter to send)" rows="2"></textarea>
+                <button id="vibe-send-btn" class="btn btn-primary">Send</button>
+              </div>
+            </div>
+
+            <!-- Right: info sidebar -->
+            <div class="vibe-chat-sidebar">
+              <div class="panel-section">
+                <div class="section-label">Session Info</div>
+                <div id="vibe-session-info" class="vibe-session-info-panel">
+                  <div class="info-placeholder">No session active</div>
+                </div>
+              </div>
+              <div class="panel-section">
+                <div class="section-label">Files Changed</div>
+                <div id="vibe-files-panel" class="vibe-files-panel"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Autonomous tab -->
+        <div id="vibe-tab-autonomous" class="vibe-tab-content">
+          <div class="vibe-auto-workspace">
+
+            <!-- Left: config panel -->
+            <div class="vibe-auto-config">
+              <div class="panel-section">
+                <div class="section-label">Requirements</div>
+                <div class="form-row">
+                  <input type="text" id="auto-req-file" class="vibe-input-sm" placeholder="Requirements file path…" />
+                </div>
+                <div class="form-row-divider">— or paste —</div>
+                <div class="form-row">
+                  <textarea id="auto-req-content" class="vibe-textarea" placeholder="Paste requirements here…" rows="5"></textarea>
+                </div>
+              </div>
+              <div class="panel-section">
+                <div class="section-label">Rules</div>
+                <div id="auto-rules-list" class="auto-rules-list"></div>
+                <div class="form-row add-rule-row">
+                  <input type="text" id="new-rule-input" class="vibe-input-sm" placeholder="Add a rule…" />
+                  <button id="add-rule-btn" class="btn btn-secondary btn-sm">+ Add</button>
+                </div>
+              </div>
+              <div class="panel-section">
+                <div class="section-label">Limits</div>
+                <div class="form-row">
+                  <label class="field-label">Time limit (s)</label>
+                  <input type="number" id="auto-time-limit" class="vibe-input-sm" placeholder="e.g. 3600" />
+                </div>
+                <div class="form-row">
+                  <label class="field-label">Max steps</label>
+                  <input type="number" id="auto-max-steps" class="vibe-input-sm" placeholder="e.g. 20" />
+                </div>
+              </div>
+              <div class="auto-actions">
+                <button id="auto-run-btn" class="btn btn-primary">▶ Run</button>
+                <button id="auto-stop-btn" class="btn btn-danger hidden">⏹ Stop</button>
+              </div>
+            </div>
+
+            <!-- Right: progress panel -->
+            <div class="vibe-auto-progress">
+              <div class="panel-section">
+                <div class="section-label">Steps</div>
+                <div id="auto-steps-list" class="auto-steps-list"></div>
+              </div>
+              <div class="panel-section">
+                <div class="section-label">Current AI Output</div>
+                <div id="auto-current-output" class="auto-current-output"></div>
+              </div>
+              <div class="panel-section">
+                <div class="section-label">Files Changed</div>
+                <div id="auto-files-panel" class="vibe-files-panel"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
     </main>
+  </div>
+
+  <!-- HIL Modal -->
+  <div id="hil-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Human-in-the-Loop Request</h2>
+        <span id="hil-reason" class="status-pill status-waiting-hil"></span>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Confusion Summary</label>
+          <p id="hil-confusion" class="hil-text"></p>
+        </div>
+        <div class="form-group">
+          <label>Recent Steps</label>
+          <ul id="hil-recent-steps" class="hil-recent-steps"></ul>
+        </div>
+        <div class="form-group">
+          <label for="hil-guidance">Your Guidance</label>
+          <textarea id="hil-guidance" class="vibe-textarea" rows="4" placeholder="Provide guidance to continue…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="hil-submit-btn" class="btn btn-primary">Continue →</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast hidden"></div>
