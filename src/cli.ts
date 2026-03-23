@@ -142,6 +142,12 @@ program
   .option('-c, --cmd <command>', 'Run and attach to a process command')
   .option('-s, --session <name>', 'Session name', 'debug-session')
   .option('--batch <n>', 'Lines to batch before analysis', '20')
+  .option('--retry <n>', 'AI analysis retry attempts on failure', '3')
+  .option('--retry-delay <ms>', 'Base retry delay in ms (doubles each attempt)', '1000')
+  .option('--notify-slack <url>', 'Slack webhook URL for failure notifications')
+  .option('--notify-webhook <url>', 'HTTP webhook URL for failure notifications')
+  .option('--log-pattern <patterns>', 'Comma-separated regex patterns; only matching lines are analyzed')
+  .option('--log-level <levels>', 'Comma-separated log levels to watch (e.g. ERROR,WARN,FATAL)')
   .action(async (opts) => {
     const config = loadConfig({ provider: opts.provider, model: opts.model });
 
@@ -172,9 +178,29 @@ program
     console.log(chalk.yellow('\n  🔍 Live Debugger started'));
     console.log(chalk.dim('  AI will analyze errors as they appear. Press Ctrl+C to stop.\n'));
 
+    // Build optional notification config from CLI flags
+    const notifications = (() => {
+      const slack = opts.notifySlack as string | undefined;
+      const webhook = opts.notifyWebhook as string | undefined;
+      if (!slack && !webhook) return undefined;
+      return {
+        ...(slack ? { slack: { enabled: true, webhookUrl: slack } } : {}),
+        ...(webhook ? { webhook: { enabled: true, url: webhook } } : {}),
+      };
+    })();
+
     const debugger_ = new LiveDebugger({
       session,
       batchSize: parseInt(opts.batch, 10),
+      retryCount: parseInt(opts.retry, 10),
+      retryDelayMs: parseInt(opts.retryDelay, 10),
+      notifications,
+      logPatterns: opts.logPattern
+        ? (opts.logPattern as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+        : undefined,
+      logLevels: opts.logLevel
+        ? (opts.logLevel as string).split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean)
+        : undefined,
       onLog: (line) => process.stdout.write(chalk.dim(`  ${line}\n`)),
       onAnalysis: (analysis) => {
         console.log(chalk.bold.yellow('\n  ━━ AI Analysis ━━━━━━━━━━━━━━━━━━━━━━━━'));
@@ -260,7 +286,14 @@ program
     const sessionsDir = config.sessionDir || path.join(os.homedir(), '.fusion-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
 
-    const server = createWebServer({ port: config.port, sessionManager });
+    const server = createWebServer({
+      port: config.port,
+      sessionManager,
+      apiKey: config.apiKey,
+      provider: config.provider,
+      model: config.model,
+      projectDir: process.cwd(),
+    });
     await server.start();
 
     console.log(chalk.green(`\n  ✓ AI Agent Web UI running at ${chalk.bold(`http://localhost:${config.port}`)}`));

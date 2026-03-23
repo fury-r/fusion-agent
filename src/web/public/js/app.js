@@ -357,11 +357,13 @@
 
   // ---- Status pill -------------------------------------------
 
+  var VALID_STATUSES = { 'idle': true, 'running': true, 'waiting-hil': true, 'completed': true, 'stopped': true, 'timed-out': true };
+
   function setVibeStatus(status) {
     var pill = document.getElementById('vibe-status-pill');
-    // status values are server-controlled strings (idle/running/waiting-hil/etc.) — safe as class names
-    pill.className = 'status-pill status-' + status;
-    pill.textContent = status;
+    var safeStatus = VALID_STATUSES[status] ? status : 'idle';
+    pill.className = 'status-pill status-' + safeStatus;
+    pill.textContent = safeStatus;
   }
 
   // ---- Autonomous rules editor --------------------------------

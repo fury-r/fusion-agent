@@ -3,6 +3,8 @@ import { Session } from '../session/session';
 import { LogWatcher } from './log-watcher';
 import { ServiceConnector, ServiceConnectionOptions } from './service-connector';
 import { logger } from '../utils/logger';
+import { NotificationManager } from '../cluster-monitor/notifications';
+import { NotificationConfig } from '../cluster-monitor/types';
 
 export interface LiveDebuggerOptions {
   session: Session;
@@ -12,12 +14,43 @@ export interface LiveDebuggerOptions {
   maxWaitSeconds?: number;
   onAnalysis?: (analysis: string) => void;
   onLog?: (line: string) => void;
+  /**
+   * How many times to retry a failed AI analysis call (default: 3).
+   * Set to 0 to disable retries.
+   */
+  retryCount?: number;
+  /**
+   * Base delay in milliseconds between retry attempts.
+   * Each retry doubles the delay (exponential back-off). Default: 1000 ms.
+   */
+  retryDelayMs?: number;
+  /**
+   * Messaging platform configuration. When configured, a notification is sent
+   * if all retry attempts are exhausted instead of silently failing.
+   */
+  notifications?: NotificationConfig;
+  /**
+   * Regex pattern strings. Only log lines that match at least one pattern are
+   * batched. When omitted all lines are accepted (existing behaviour).
+   */
+  logPatterns?: string[];
+  /**
+   * Log-level names (e.g. `['ERROR', 'WARN', 'FATAL']`). Only lines that
+   * contain one of these level tokens are batched. When omitted all levels
+   * are accepted. Combined with `logPatterns` using OR logic.
+   */
+  logLevels?: string[];
 }
 
 export class LiveDebugger extends EventEmitter {
   private session: Session;
   private batchSize: number;
   private maxWaitSeconds: number;
+  private retryCount: number;
+  private retryDelayMs: number;
+  private notificationManager?: NotificationManager;
+  private lineFilter?: (line: string) => boolean;
+  private customFiltersActive: boolean;
   private logBatch: string[] = [];
   private flushTimer?: ReturnType<typeof setTimeout>;
   private connector?: ServiceConnector | LogWatcher;
@@ -28,6 +61,33 @@ export class LiveDebugger extends EventEmitter {
     this.session = options.session;
     this.batchSize = options.batchSize ?? 20;
     this.maxWaitSeconds = options.maxWaitSeconds ?? 30;
+    this.retryCount = options.retryCount ?? 3;
+    this.retryDelayMs = options.retryDelayMs ?? 1000;
+
+    if (options.notifications) {
+      this.notificationManager = new NotificationManager(options.notifications);
+    }
+
+    // Build the log line pre-filter when patterns or levels are configured
+    const patternRegexes: RegExp[] = [];
+    for (const p of options.logPatterns ?? []) {
+      try {
+        patternRegexes.push(new RegExp(p, 'i'));
+      } catch {
+        logger.warn(`LiveDebugger: ignoring invalid logPattern "${p}"`);
+      }
+    }
+    const levelRe =
+      options.logLevels && options.logLevels.length > 0
+        ? new RegExp(`\\b(${options.logLevels.join('|')})\\b`, 'i')
+        : null;
+
+    this.customFiltersActive = patternRegexes.length > 0 || levelRe !== null;
+
+    if (this.customFiltersActive) {
+      this.lineFilter = (line: string) =>
+        patternRegexes.some((p) => p.test(line)) || (levelRe !== null && levelRe.test(line));
+    }
 
     if (options.onAnalysis) this.on('analysis', options.onAnalysis);
     if (options.onLog) this.on('log', options.onLog);
@@ -74,6 +134,10 @@ export class LiveDebugger extends EventEmitter {
   private handleLine(line: string): void {
     try {
       if (typeof line !== 'string') return;
+
+      // Apply configured log filters before buffering
+      if (this.lineFilter && !this.lineFilter(line)) return;
+
       this.emit('log', line);
       this.logBatch.push(line);
 
@@ -102,27 +166,26 @@ export class LiveDebugger extends EventEmitter {
     this.analyzing = true;
 
     try {
-      const errorKeywords = /error|exception|fatal|critical|traceback|panic|fail/i;
-      const hasErrors = lines.some((l) => errorKeywords.test(l));
-      if (!hasErrors) {
-        return;
+      // When custom filters are active the user has already scoped what lines
+      // to batch, so skip the default error-keyword gate.
+      if (!this.customFiltersActive) {
+        const errorKeywords = /error|exception|fatal|critical|traceback|panic|fail/i;
+        const hasErrors = lines.some((l) => errorKeywords.test(l));
+        if (!hasErrors) {
+          return;
+        }
       }
 
       const logContent = lines.join('\n');
       const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.\n\n\`\`\`\n${logContent}\n\`\`\``;
 
-      let analysis = '';
-      await this.session.chat(prompt, {
-        stream: true,
-        onChunk: (chunk) => {
-          analysis += chunk;
-          this.emit('analysis-chunk', chunk);
-        },
-      });
+      const analysis = await this.callAI(prompt);
       this.emit('analysis', analysis);
     } catch (err) {
-      logger.error(`Live debugger analysis error: ${err}`);
-      this.emit('error', err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error(`Live debugger analysis error (all retries exhausted): ${error.message}`);
+      await this.notifyFailure(error, lines);
+      this.emit('error', error);
     } finally {
       this.analyzing = false;
     }
@@ -138,20 +201,69 @@ export class LiveDebugger extends EventEmitter {
       `Analyze these logs and identify any issues:\n\n\`\`\`\n${logContent}\n\`\`\``;
 
     try {
-      let analysis = '';
-      await this.session.chat(prompt, {
-        stream: true,
-        onChunk: (chunk) => {
-          analysis += chunk;
-          this.emit('analysis-chunk', chunk);
-        },
-      });
+      const analysis = await this.callAI(prompt);
       this.emit('analysis', analysis);
       return analysis;
     } catch (err) {
-      logger.error(`Live debugger analyzeNow error: ${err}`);
-      this.emit('error', err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error(`Live debugger analyzeNow error (all retries exhausted): ${error.message}`);
+      await this.notifyFailure(error, lines);
+      this.emit('error', error);
       return '';
+    }
+  }
+
+  /**
+   * Call the AI provider with automatic retry on failure.
+   * Uses exponential back-off: delay doubles after each attempt.
+   */
+  private async callAI(prompt: string): Promise<string> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= this.retryCount; attempt++) {
+      if (attempt > 0) {
+        const delay = this.retryDelayMs * Math.pow(2, attempt - 1);
+        logger.warn(
+          `Live debugger AI retry ${attempt}/${this.retryCount} in ${delay} ms…`
+        );
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+      }
+      try {
+        let analysis = '';
+        await this.session.chat(prompt, {
+          stream: true,
+          onChunk: (chunk) => {
+            analysis += chunk;
+            this.emit('analysis-chunk', chunk);
+          },
+        });
+        return analysis;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        logger.warn(
+          `Live debugger AI attempt ${attempt + 1}/${this.retryCount + 1} failed: ${lastError.message}`
+        );
+      }
+    }
+
+    throw lastError!;
+  }
+
+  /** Send a notification when all AI retries are exhausted. */
+  private async notifyFailure(error: Error, logLines: string[]): Promise<void> {
+    if (!this.notificationManager) return;
+    try {
+      await this.notificationManager.send({
+        title: '⚠ Live Debugger: AI analysis failed',
+        body:
+          `All ${this.retryCount + 1} analysis attempt(s) failed.\n` +
+          `Last error: ${error.message}\n\n` +
+          `Last log lines:\n${logLines.slice(-5).join('\n')}`,
+        severity: 'error',
+        service: 'live-debugger',
+      });
+    } catch (notifyErr) {
+      logger.error(`Live debugger notification error: ${notifyErr}`);
     }
   }
 

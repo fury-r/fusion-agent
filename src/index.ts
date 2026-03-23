@@ -7,9 +7,12 @@ export type { LiveDebuggerOptions, ServiceConnectionOptions } from './live-debug
 export { ClusterMonitor, RemediationEngine, NotificationManager, KubernetesConnector, discoverServices, loadClusterRules, validateClusterRules, findMatchingRule, avoidanceRulesToSystemPrompt, DEFAULT_CLUSTER_RULES } from './cluster-monitor';
 export type { ClusterMonitorConfig, ServiceTarget, AllServiceConnectionOptions, KubernetesConnectionOptions, LogFileConnectionOptions, MonitorMode, ClusterRules, RemediationRule, RemediationAction, AvoidanceRule, NotificationConfig, DetectedFailure, HITLRequest, HITLResponse, ClusterRulesFile, RemediationResult, NotificationMessage } from './cluster-monitor';
 export { createWebServer } from './web/server';
+export type { WebServerOptions } from './web/server';
 export { loadConfig, saveConfig } from './utils/config';
 export type { AIAgentConfig, GuardrailConfig } from './utils/config';
 export { gatherProjectContext, getDirectoryStructure, createChange, applyChange, revertChange } from './utils/file-ops';
+export { AutonomousVibeAgent, extractFileBlocks, detectCompletion, LoopDetector, jaccardSimilarity } from './vibe-coder';
+export type { AutonomousConfig, VibeCoderRule, VibeCoderStep, AutonomousStatus, HILReason, HILRequest, VibeCoderFileChange } from './vibe-coder';
 
 import { loadConfig, AIAgentConfig } from './utils/config';
 import { createProvider } from './providers';

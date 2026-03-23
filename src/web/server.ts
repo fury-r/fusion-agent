@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { SessionManager } from '../session/session-manager';
 import { createSessionRoutes } from './routes/sessions';
 import { createSettingsRoutes } from './routes/settings';
+import { createVibeCoderRoutes, registerVibeCoderSocket } from './routes/vibe-coder';
 import { logger } from '../utils/logger';
 
 export interface WebServerOptions {
@@ -13,6 +14,10 @@ export interface WebServerOptions {
   sessionManager: SessionManager;
   apiKey?: string;
   provider?: string;
+  /** Default AI model for new vibe-coder sessions (falls back to provider default). */
+  model?: string;
+  /** Default project directory for new vibe-coder sessions (falls back to process.cwd()). */
+  projectDir?: string;
 }
 
 export function createWebServer(options: WebServerOptions) {
@@ -39,9 +44,18 @@ export function createWebServer(options: WebServerOptions) {
   // Serve static files
   app.use(express.static(path.join(__dirname, 'public')));
 
+  const vibeCoderOptions = {
+    sessionManager: options.sessionManager,
+    apiKey: options.apiKey,
+    provider: options.provider,
+    model: options.model,
+    projectDir: options.projectDir,
+  };
+
   // API routes
   app.use('/api/sessions', createSessionRoutes(options.sessionManager));
   app.use('/api/settings', createSettingsRoutes());
+  app.use('/api/vibe-coder', createVibeCoderRoutes(options.sessionManager, vibeCoderOptions));
 
   // Catch-all: serve index.html for SPA-style navigation
   app.get('*', (_req, res) => {
@@ -60,6 +74,9 @@ export function createWebServer(options: WebServerOptions) {
     socket.on('unsubscribe:session', (sessionId: string) => {
       void socket.leave(`session:${sessionId}`);
     });
+
+    // Vibe Coder: interactive chat + autonomous mode
+    registerVibeCoderSocket(socket, vibeCoderOptions);
 
     socket.on('disconnect', () => {
       logger.debug(`Web UI client disconnected: ${socket.id}`);

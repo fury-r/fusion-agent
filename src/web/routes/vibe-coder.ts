@@ -51,12 +51,17 @@ export function registerVibeCoderSocket(
   // Active autonomous agents keyed by sessionId; cleaned up on completion/stop/disconnect
   const agents = new Map<string, AutonomousVibeAgent>();
 
+  /** Resolve the effective project directory for a session. */
+  function resolveProjectDir(session?: { config?: { projectDir?: string } }, override?: string): string {
+    return override || session?.config?.projectDir || defaultProjectDir || process.cwd();
+  }
+
   // ── vibe:start ────────────────────────────────────────────────────────────
   socket.on(
     'vibe:start',
     (data: { sessionId?: string; sessionName?: string; projectDir?: string }) => {
       try {
-        const projectDir = data.projectDir || defaultProjectDir || process.cwd();
+        const projectDir = resolveProjectDir(undefined, data.projectDir);
         let session;
         if (data.sessionId) {
           try {
@@ -95,8 +100,7 @@ export function registerVibeCoderSocket(
         const session =
           sessionManager.getSession(data.sessionId) ||
           sessionManager.loadSession(data.sessionId, apiKey);
-        const projectDir =
-          session.config.projectDir || defaultProjectDir || process.cwd();
+        const projectDir = resolveProjectDir(session);
 
         let fullResponse = '';
         const turn = await session.chat(data.message, {
@@ -150,8 +154,7 @@ export function registerVibeCoderSocket(
         const session =
           sessionManager.getSession(data.sessionId) ||
           sessionManager.loadSession(data.sessionId, apiKey);
-        const projectDir =
-          session.config.projectDir || defaultProjectDir || process.cwd();
+        const projectDir = resolveProjectDir(session);
         const context = gatherProjectContext(projectDir);
         const message = `Here is the current project context:\n\n${context}`;
 
@@ -171,10 +174,7 @@ export function registerVibeCoderSocket(
           try {
             const absPath = path.isAbsolute(block.filePath)
               ? block.filePath
-              : path.resolve(
-                  session.config.projectDir || defaultProjectDir || process.cwd(),
-                  block.filePath
-                );
+              : path.resolve(projectDir, block.filePath);
             session.applyFileChange(absPath, block.content);
             appliedFiles.push(block.filePath);
             socket.emit('vibe:file-changed', {

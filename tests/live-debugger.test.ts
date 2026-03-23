@@ -26,7 +26,8 @@ function makeSession(chatImpl?: (prompt: string) => Promise<void>): Session {
 
 function makeDebugger(chatImpl?: (prompt: string) => Promise<void>) {
   const session = makeSession(chatImpl);
-  const dbg = new LiveDebugger({ session, batchSize: 5, maxWaitSeconds: 60 });
+  // retryCount: 0 keeps tests fast (no exponential back-off delays)
+  const dbg = new LiveDebugger({ session, batchSize: 5, maxWaitSeconds: 60, retryCount: 0 });
   // Silence unhandled-error warnings in tests by attaching a default listener
   dbg.on('error', () => { /* handled */ });
   return dbg;
@@ -89,7 +90,7 @@ describe('LiveDebugger', () => {
       const chatMock = jest.fn();
       const session = makeSession();
       (session as unknown as Record<string, unknown>).chat = chatMock;
-      const dbg = new LiveDebugger({ session, batchSize: 3, maxWaitSeconds: 60 });
+      const dbg = new LiveDebugger({ session, batchSize: 3, maxWaitSeconds: 60, retryCount: 0 });
       dbg.on('error', () => { /* swallow */ });
 
       for (let i = 0; i < 3; i++) {
