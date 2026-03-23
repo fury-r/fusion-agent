@@ -34,33 +34,58 @@ export class LiveDebugger extends EventEmitter {
   }
 
   watchLogFile(filePath: string, tailLines = 50): void {
-    const watcher = new LogWatcher({ filePath, tailLines });
-    watcher.on('line', (line: string) => this.handleLine(line));
-    watcher.start();
-    this.connector = watcher;
+    try {
+      const watcher = new LogWatcher({ filePath, tailLines });
+      watcher.on('line', (line: string) => this.handleLine(line));
+      watcher.on('error', (err: Error) => {
+        logger.error(`Live debugger log watcher error: ${err.message}`);
+        this.emit('error', err);
+      });
+      watcher.start();
+      this.connector = watcher;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error(`Live debugger failed to start log watcher: ${error.message}`);
+      this.emit('error', error);
+    }
   }
 
   connectToService(options: ServiceConnectionOptions): void {
-    const connector = new ServiceConnector(options);
-    connector.on('line', (line: string) => this.handleLine(line));
-    connector.on('exit', (code: number) => {
-      logger.info(`Service exited with code: ${code}`);
-      this.emit('exit', code);
-    });
-    connector.start();
-    this.connector = connector;
+    try {
+      const connector = new ServiceConnector(options);
+      connector.on('line', (line: string) => this.handleLine(line));
+      connector.on('error', (err: Error) => {
+        logger.error(`Live debugger service connector error: ${err.message}`);
+        this.emit('error', err);
+      });
+      connector.on('exit', (code: number) => {
+        logger.info(`Service exited with code: ${code}`);
+        this.emit('exit', code);
+      });
+      connector.start();
+      this.connector = connector;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error(`Live debugger failed to start service connector: ${error.message}`);
+      this.emit('error', error);
+    }
   }
 
   private handleLine(line: string): void {
-    this.emit('log', line);
-    this.logBatch.push(line);
+    try {
+      if (typeof line !== 'string') return;
+      this.emit('log', line);
+      this.logBatch.push(line);
 
-    // Reset flush timer
-    if (this.flushTimer) clearTimeout(this.flushTimer);
-    this.flushTimer = setTimeout(() => { void this.flush(); }, this.maxWaitSeconds * 1000);
+      // Reset flush timer
+      if (this.flushTimer) clearTimeout(this.flushTimer);
+      this.flushTimer = setTimeout(() => { void this.flush(); }, this.maxWaitSeconds * 1000);
 
-    if (this.logBatch.length >= this.batchSize) {
-      void this.flush();
+      if (this.logBatch.length >= this.batchSize) {
+        void this.flush();
+      }
+    } catch (err) {
+      logger.error(`Live debugger handleLine error: ${err}`);
     }
   }
 
@@ -76,17 +101,16 @@ export class LiveDebugger extends EventEmitter {
 
     this.analyzing = true;
 
-    const errorKeywords = /error|exception|fatal|critical|traceback|panic|fail/i;
-    const hasErrors = lines.some((l) => errorKeywords.test(l));
-    if (!hasErrors) {
-      this.analyzing = false;
-      return;
-    }
-
-    const logContent = lines.join('\n');
-    const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.\n\n\`\`\`\n${logContent}\n\`\`\``;
-
     try {
+      const errorKeywords = /error|exception|fatal|critical|traceback|panic|fail/i;
+      const hasErrors = lines.some((l) => errorKeywords.test(l));
+      if (!hasErrors) {
+        return;
+      }
+
+      const logContent = lines.join('\n');
+      const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.\n\n\`\`\`\n${logContent}\n\`\`\``;
+
       let analysis = '';
       await this.session.chat(prompt, {
         stream: true,
@@ -98,6 +122,7 @@ export class LiveDebugger extends EventEmitter {
       this.emit('analysis', analysis);
     } catch (err) {
       logger.error(`Live debugger analysis error: ${err}`);
+      this.emit('error', err instanceof Error ? err : new Error(String(err)));
     } finally {
       this.analyzing = false;
     }
@@ -112,25 +137,34 @@ export class LiveDebugger extends EventEmitter {
       customPrompt ||
       `Analyze these logs and identify any issues:\n\n\`\`\`\n${logContent}\n\`\`\``;
 
-    let analysis = '';
-    await this.session.chat(prompt, {
-      stream: true,
-      onChunk: (chunk) => {
-        analysis += chunk;
-        this.emit('analysis-chunk', chunk);
-      },
-    });
-    this.emit('analysis', analysis);
-    return analysis;
+    try {
+      let analysis = '';
+      await this.session.chat(prompt, {
+        stream: true,
+        onChunk: (chunk) => {
+          analysis += chunk;
+          this.emit('analysis-chunk', chunk);
+        },
+      });
+      this.emit('analysis', analysis);
+      return analysis;
+    } catch (err) {
+      logger.error(`Live debugger analyzeNow error: ${err}`);
+      this.emit('error', err instanceof Error ? err : new Error(String(err)));
+      return '';
+    }
   }
 
   stop(): void {
-    if (this.flushTimer) clearTimeout(this.flushTimer);
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = undefined;
+    }
     if (this.connector) {
-      if (this.connector instanceof LogWatcher) {
+      try {
         this.connector.stop();
-      } else {
-        this.connector.stop();
+      } catch (err) {
+        logger.error(`Live debugger stop error: ${err}`);
       }
     }
   }

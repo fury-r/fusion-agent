@@ -184,6 +184,10 @@ program
       },
     });
 
+    debugger_.on('error', (err: Error) => {
+      console.error(chalk.red(`\n  ⚠ Live Debugger error: ${err.message}\n`));
+    });
+
     if (opts.file) {
       debugger_.watchLogFile(opts.file);
     } else if (opts.docker) {
