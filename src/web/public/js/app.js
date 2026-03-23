@@ -323,7 +323,7 @@
           '<pre><code>' + escHtml(part.content) + '</code></pre></div>';
       }
       return part.content.split('\n').map(function (line) {
-        return line.trim() ? '<p>' + escHtml(line) + '</p>' : '<br>';
+        return line ? '<p>' + escHtml(line) + '</p>' : '<br>';
       }).join('');
     }).join('');
   }
@@ -359,7 +359,8 @@
 
   function setVibeStatus(status) {
     var pill = document.getElementById('vibe-status-pill');
-    pill.className = 'status-pill status-' + escHtml(status);
+    // status values are server-controlled strings (idle/running/waiting-hil/etc.) — safe as class names
+    pill.className = 'status-pill status-' + status;
     pill.textContent = status;
   }
 
