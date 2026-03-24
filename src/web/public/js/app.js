@@ -53,7 +53,7 @@
         '<div class="session-card-header">' +
         '<div class="session-status ' + statusClass + '"></div>' +
         '<div>' +
-        '<div class="session-name">' + escHtml(s.name) + '</div>' +
+        '<div class="session-name">' + (s.config.speckit === 'debugger' ? '🔍 ' : '') + escHtml(s.name) + '</div>' +
         '<div class="session-meta">' + turns + ' turns · Updated ' + updated + '</div>' +
         '</div>' +
         '</div>' +
@@ -81,6 +81,10 @@
   }
 
   function renderSessionDetail(session) {
+    if (session.config && session.config.speckit === 'debugger') {
+      renderDebuggerDetail(session);
+      return;
+    }
     document.getElementById('session-detail-title').textContent = session.name;
     showPage('session-detail');
 
@@ -624,4 +628,388 @@
   }
 
   initVibeUI();
+
+  // ============================================================
+  // LIVE DEBUGGER
+  // ============================================================
+
+  var dbgActiveModal = { sessionId: null, turnId: null };
+
+  function renderDebuggerDetail(session) {
+    currentSessionId = session.id;
+    document.querySelector('.main-content').classList.add('debugger-mode');
+    showPage('debugger-detail');
+
+    document.getElementById('dbg-session-title').textContent = '🔍 ' + session.name;
+    document.getElementById('dbg-session-id-badge').textContent = session.id.slice(0, 8) + '…';
+    var statusBadge = document.getElementById('dbg-session-status-badge');
+    statusBadge.textContent = session.status;
+    var SAFE_STATUSES = { active: true, idle: true, running: true, completed: true, paused: true, stopped: true, error: true };
+    statusBadge.className = 'status-pill status-' + (SAFE_STATUSES[session.status] ? session.status : 'idle');
+
+    // Reset subscribe button
+    var subBtn = document.getElementById('dbg-subscribe-btn');
+    subBtn.textContent = 'Subscribe Live';
+    subBtn.disabled = false;
+    document.getElementById('dbg-live-dot').classList.add('hidden');
+
+    // Populate log feed
+    var logFeed = document.getElementById('dbg-log-feed');
+    logFeed.innerHTML = '';
+    (session.turns || []).forEach(function (turn) {
+      var meta = turn.debuggerMeta || {};
+      (meta.matchedLogLines || []).forEach(function (line) {
+        logFeed.appendChild(makeDbgLogLine(line, null, true));
+      });
+    });
+
+    // Populate analysis cards (newest first)
+    var analysisList = document.getElementById('dbg-analysis-list');
+    analysisList.innerHTML = '';
+    var turns = (session.turns || []).slice().reverse();
+    if (turns.length === 0) {
+      analysisList.innerHTML = '<div class="loading">No analysis yet</div>';
+    } else {
+      turns.forEach(function (turn, idx) {
+        analysisList.appendChild(makeAnalysisCard(turn, turns.length - idx, session.id));
+      });
+    }
+
+    // Populate info panel
+    document.getElementById('dbg-info-panel').innerHTML = renderDbgInfoPanel(session);
+
+    // Subscribe to session-level updates
+    socket.emit('subscribe:session', session.id);
+  }
+
+  function makeDbgLogLine(line, timestamp, isMatched) {
+    var div = document.createElement('div');
+    div.className = 'dbg-log-line' + (isMatched ? ' log-matched' : '');
+    var html = '';
+    if (timestamp) {
+      html += '<span class="log-ts">' + escHtml(new Date(timestamp).toLocaleTimeString()) + '</span>';
+    }
+    html += escHtml(line);
+    div.innerHTML = html;
+    return div;
+  }
+
+  function makeAnalysisCard(turn, number, sessionId) {
+    var meta = turn.debuggerMeta || {};
+    var card = document.createElement('div');
+    card.className = 'analysis-card';
+    card.setAttribute('data-turn-id', turn.id);
+
+    var promptSentAt = meta.promptSentAt ? new Date(meta.promptSentAt).toLocaleString() : '—';
+    var duration = '';
+    if (meta.promptSentAt && meta.responseReceivedAt) {
+      duration = (new Date(meta.responseReceivedAt) - new Date(meta.promptSentAt)) + 'ms';
+    }
+
+    var headerHtml =
+      '<div class="analysis-header">' +
+        '<div class="analysis-header-left">' +
+          '<span>Analysis #' + escHtml(String(number)) + '</span>' +
+          '<span class="analysis-timestamp">' + escHtml(promptSentAt) + '</span>' +
+          (duration ? '<span class="analysis-duration">' + escHtml(duration) + '</span>' : '') +
+        '</div>' +
+        '<button class="analysis-prompt-toggle">▶ Prompt</button>' +
+      '</div>';
+
+    var promptHtml =
+      '<div class="analysis-prompt">' + escHtml(turn.userMessage || '') + '</div>';
+
+    var bodyHtml =
+      '<div class="analysis-body">' + renderMessageContent(turn.assistantMessage || '') + '</div>';
+
+    var footerBadges = '';
+    if (meta.notificationSent) footerBadges += '<span class="badge-notified">🔔 Notified</span>';
+    if (meta.fixApplied) footerBadges += '<span class="badge-fix-applied">🔧 Fix Applied</span>';
+    if (meta.jiraKey) {
+      footerBadges += '<a href="#" class="badge-jira">🎫 ' + escHtml(meta.jiraKey) + '</a>';
+    }
+    if (meta.gitFixUrl) {
+      footerBadges += '<a href="' + escHtml(meta.gitFixUrl) + '" target="_blank" rel="noopener noreferrer" class="badge-git">🔗 Git Fix</a>';
+    }
+
+    var footerHtml =
+      '<div class="analysis-footer">' +
+        footerBadges +
+        '<button class="dbg-action-btn dbg-jira-btn">🎫 Create Jira Ticket</button>' +
+        '<button class="dbg-action-btn dbg-git-btn">⚙ Apply Git Fix</button>' +
+      '</div>';
+
+    card.innerHTML = headerHtml + promptHtml + bodyHtml + footerHtml;
+
+    card.querySelector('.analysis-prompt-toggle').addEventListener('click', function () {
+      card.classList.toggle('expanded');
+      this.textContent = card.classList.contains('expanded') ? '▼ Prompt' : '▶ Prompt';
+    });
+
+    card.querySelector('.dbg-jira-btn').addEventListener('click', function () {
+      openJiraModal(sessionId, turn.id, turn.assistantMessage || '');
+    });
+
+    card.querySelector('.dbg-git-btn').addEventListener('click', function () {
+      openGitModal(sessionId, turn.id);
+    });
+
+    return card;
+  }
+
+  function renderDbgInfoPanel(session) {
+    var guardrails = (session.config && session.config.guardrails) || [];
+    var html =
+      '<div class="section-label dbg-panel-label">Session Info</div>' +
+      '<div style="padding:10px 0">' +
+        '<div class="dbg-info-section">' +
+          '<div class="dbg-info-row"><strong>ID:</strong> ' + escHtml(session.id) + '</div>' +
+          '<div class="dbg-info-row"><strong>Status:</strong> ' + escHtml(session.status) + '</div>' +
+          '<div class="dbg-info-row"><strong>Provider:</strong> ' + escHtml((session.config && session.config.provider) || '—') + '</div>' +
+          '<div class="dbg-info-row"><strong>Model:</strong> ' + escHtml((session.config && session.config.model) || 'default') + '</div>' +
+          '<div class="dbg-info-row"><strong>Created:</strong> ' + escHtml(new Date(session.createdAt).toLocaleString()) + '</div>' +
+          '<div class="dbg-info-row"><strong>Updated:</strong> ' + escHtml(new Date(session.updatedAt).toLocaleString()) + '</div>' +
+        '</div>';
+
+    if (guardrails.length) {
+      html +=
+        '<div class="dbg-info-section">' +
+          '<div class="section-label">Guardrails (' + guardrails.length + ')</div>' +
+          guardrails.map(function (g) {
+            return '<div class="guardrail-item">' +
+              '<div class="guardrail-type">' + escHtml(g.type || '') + '</div>' +
+              escHtml(g.description || '') +
+            '</div>';
+          }).join('') +
+        '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function openJiraModal(sessionId, turnId, analysisText) {
+    dbgActiveModal.sessionId = sessionId;
+    dbgActiveModal.turnId = turnId;
+    var firstLine = (analysisText || '').split('\n')[0].replace(/^#+\s*/, '').slice(0, 120);
+    document.getElementById('jira-summary').value = firstLine;
+    document.getElementById('jira-modal').classList.remove('hidden');
+  }
+
+  function openGitModal(sessionId, turnId) {
+    dbgActiveModal.sessionId = sessionId;
+    dbgActiveModal.turnId = turnId;
+    document.getElementById('git-modal').classList.remove('hidden');
+  }
+
+  function updateCardJira(turnId, jiraKey) {
+    var card = document.querySelector('.analysis-card[data-turn-id="' + turnId + '"]');
+    if (!card) return;
+    var footer = card.querySelector('.analysis-footer');
+    if (!footer) return;
+    var existing = footer.querySelector('.badge-jira');
+    if (existing) existing.remove();
+    var badge = document.createElement('a');
+    badge.href = '#';
+    badge.className = 'badge-jira';
+    badge.textContent = '🎫 ' + jiraKey;
+    footer.insertBefore(badge, footer.firstChild);
+  }
+
+  function updateCardGit(turnId, gitUrl) {
+    var card = document.querySelector('.analysis-card[data-turn-id="' + turnId + '"]');
+    if (!card) return;
+    var footer = card.querySelector('.analysis-footer');
+    if (!footer) return;
+    var existing = footer.querySelector('.badge-git');
+    if (existing) existing.remove();
+    var badge = document.createElement('a');
+    badge.href = gitUrl || '#';
+    badge.className = 'badge-git';
+    badge.target = '_blank';
+    badge.rel = 'noopener noreferrer';
+    badge.textContent = '🔗 Git Fix';
+    footer.insertBefore(badge, footer.firstChild);
+  }
+
+  // Real-time debugger socket events
+  socket.on('debugger:log', function (data) {
+    var feed = document.getElementById('dbg-log-feed');
+    if (!feed || data.sessionId !== currentSessionId) return;
+    var line = makeDbgLogLine(data.line || '', data.timestamp || null, false);
+    line.style.opacity = '0';
+    line.style.transition = 'opacity 0.2s';
+    feed.appendChild(line);
+    setTimeout(function () { line.style.opacity = '1'; }, 10);
+    feed.scrollTop = feed.scrollHeight;
+  });
+
+  socket.on('debugger:analysis', function (data) {
+    var list = document.getElementById('dbg-analysis-list');
+    if (!list || data.sessionId !== currentSessionId) return;
+    var pseudoTurn = {
+      id: 'rt-' + Date.now(),
+      userMessage: data.prompt || '',
+      assistantMessage: data.analysis || '',
+      debuggerMeta: data.meta || {},
+    };
+    var emptyMsg = list.querySelector('.loading');
+    if (emptyMsg) emptyMsg.remove();
+    var existingCount = list.querySelectorAll('.analysis-card').length;
+    var card = makeAnalysisCard(pseudoTurn, existingCount + 1, currentSessionId);
+    card.style.opacity = '0';
+    card.style.transition = 'opacity 0.3s';
+    list.insertBefore(card, list.firstChild);
+    setTimeout(function () { card.style.opacity = '1'; }, 10);
+    // Also append matched log lines to feed
+    var feed = document.getElementById('dbg-log-feed');
+    if (feed && data.meta && data.meta.matchedLogLines) {
+      data.meta.matchedLogLines.forEach(function (line) {
+        feed.appendChild(makeDbgLogLine(line, null, true));
+      });
+      feed.scrollTop = feed.scrollHeight;
+    }
+  });
+
+  socket.on('debugger:error', function (data) {
+    if (data.sessionId !== currentSessionId) return;
+    showToast((data.message || 'Debugger error'), 'error');
+  });
+
+  function initDebuggerUI() {
+    // Back button
+    document.getElementById('dbg-back-btn').addEventListener('click', function () {
+      if (currentSessionId) {
+        socket.emit('unsubscribe:session', currentSessionId);
+        socket.emit('unsubscribe:debugger', currentSessionId);
+      }
+      currentSessionId = null;
+      document.querySelector('.main-content').classList.remove('debugger-mode');
+      showPage('sessions');
+      loadSessions();
+    });
+
+    // Subscribe Live button
+    document.getElementById('dbg-subscribe-btn').addEventListener('click', function () {
+      if (!currentSessionId) return;
+      socket.emit('subscribe:debugger', currentSessionId);
+      this.textContent = '● Live';
+      this.disabled = true;
+      document.getElementById('dbg-live-dot').classList.remove('hidden');
+    });
+
+    // Remove debugger-mode when navigating via sidebar
+    document.querySelectorAll('.nav-item').forEach(function (link) {
+      link.addEventListener('click', function () {
+        document.querySelector('.main-content').classList.remove('debugger-mode');
+      });
+    });
+
+    // Jira modal
+    document.getElementById('jira-modal-close').addEventListener('click', function () {
+      document.getElementById('jira-modal').classList.add('hidden');
+    });
+    document.getElementById('jira-cancel-btn').addEventListener('click', function () {
+      document.getElementById('jira-modal').classList.add('hidden');
+    });
+    document.getElementById('jira-modal').addEventListener('click', function (e) {
+      if (e.target === this) this.classList.add('hidden');
+    });
+
+    document.getElementById('jira-submit-btn').addEventListener('click', function () {
+      var sessionId = dbgActiveModal.sessionId;
+      var turnId = dbgActiveModal.turnId;
+      if (!sessionId) return;
+
+      var jiraConfig = {
+        baseUrl: document.getElementById('jira-base-url').value.trim(),
+        email: document.getElementById('jira-email').value.trim(),
+        apiToken: document.getElementById('jira-api-token').value.trim(),
+        projectKey: document.getElementById('jira-project-key').value.trim(),
+        issueType: document.getElementById('jira-issue-type').value.trim() || 'Bug',
+      };
+      var labelsVal = document.getElementById('jira-labels').value.trim();
+      if (labelsVal) {
+        jiraConfig.labels = labelsVal.split(',').map(function (l) { return l.trim(); }).filter(Boolean);
+      }
+
+      var body = {
+        jiraConfig: jiraConfig,
+        summary: document.getElementById('jira-summary').value.trim(),
+        priority: document.getElementById('jira-priority').value,
+      };
+      if (turnId) body.turnId = turnId;
+
+      fetch('/api/debugger/' + sessionId + '/jira', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          document.getElementById('jira-modal').classList.add('hidden');
+          showToast('Jira ticket created' + (data.key ? ': ' + data.key : ''), 'success');
+          if (data.key && turnId) updateCardJira(turnId, data.key);
+        })
+        .catch(function (err) { showToast('Error: ' + err.message, 'error'); });
+    });
+
+    // Git modal
+    document.getElementById('git-modal-close').addEventListener('click', function () {
+      document.getElementById('git-modal').classList.add('hidden');
+    });
+    document.getElementById('git-cancel-btn').addEventListener('click', function () {
+      document.getElementById('git-modal').classList.add('hidden');
+    });
+    document.getElementById('git-modal').addEventListener('click', function (e) {
+      if (e.target === this) this.classList.add('hidden');
+    });
+
+    document.getElementById('git-submit-btn').addEventListener('click', function () {
+      var sessionId = dbgActiveModal.sessionId;
+      var turnId = dbgActiveModal.turnId;
+      if (!sessionId) return;
+
+      var gitConfig = {
+        repoPath: document.getElementById('git-repo-path').value.trim(),
+      };
+      var token = document.getElementById('git-token').value.trim();
+      if (token) gitConfig.token = token;
+      var remoteUrl = document.getElementById('git-remote-url').value.trim();
+      if (remoteUrl) gitConfig.remoteUrl = remoteUrl;
+      var branch = document.getElementById('git-branch').value.trim();
+      if (branch) gitConfig.branch = branch;
+      var apiBaseUrl = document.getElementById('git-api-base-url').value.trim();
+      if (apiBaseUrl) gitConfig.apiBaseUrl = apiBaseUrl;
+      var guardrailsText = document.getElementById('git-guardrails').value.trim();
+      if (guardrailsText) {
+        gitConfig.guardrails = guardrailsText.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+      }
+
+      var body = { gitConfig: gitConfig };
+      var commitMsg = document.getElementById('git-commit-message').value.trim();
+      if (commitMsg) body.commitMessage = commitMsg;
+      var prTitle = document.getElementById('git-pr-title').value.trim();
+      if (prTitle) body.prTitle = prTitle;
+      var baseBranch = document.getElementById('git-base-branch').value.trim();
+      if (baseBranch) body.baseBranch = baseBranch;
+      if (turnId) body.turnId = turnId;
+
+      fetch('/api/debugger/' + sessionId + '/git-fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          document.getElementById('git-modal').classList.add('hidden');
+          var url = data.pullRequestUrl || data.commitSha || '';
+          showToast('Git fix applied' + (url ? ': ' + url : ''), 'success');
+          if (turnId) updateCardGit(turnId, url);
+        })
+        .catch(function (err) { showToast('Error: ' + err.message, 'error'); });
+    });
+  }
+
+  initDebuggerUI();
 })();

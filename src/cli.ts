@@ -140,7 +140,7 @@ program
   .option('-f, --file <logFile>', 'Watch a log file')
   .option('-d, --docker <container>', 'Attach to Docker container logs')
   .option('-c, --cmd <command>', 'Run and attach to a process command')
-  .option('-s, --session <name>', 'Session name', 'debug-session')
+  .option('-s, --session <name>', 'Session name (default: live-debugger-<id>)')
   .option('--batch <n>', 'Lines to batch before analysis', '20')
   .option('--retry <n>', 'AI analysis retry attempts on failure', '3')
   .option('--retry-delay <ms>', 'Base retry delay in ms (doubles each attempt)', '1000')
@@ -149,6 +149,8 @@ program
   .option('--notify-webhook <url>', 'HTTP webhook URL for failure notifications')
   .option('--log-pattern <patterns>', 'Comma-separated regex patterns; only matching lines are analyzed')
   .option('--log-level <levels>', 'Comma-separated log levels to watch (e.g. ERROR,WARN,FATAL)')
+  .option('--ui', 'Also launch the Web UI alongside the debugger')
+  .option('--port <port>', 'Web UI port when --ui is used (default: 3000)', '3000')
   .action(async (opts) => {
     const config = loadConfig({ provider: opts.provider, model: opts.model });
 
@@ -164,9 +166,13 @@ program
 
     const sessionsDir = config.sessionDir || path.join(os.homedir(), '.fusion-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
+
+    // Build session name: user-provided, else live-debugger-<shortId>
+    const sessionName = opts.session || `live-debugger-${Date.now().toString(36)}`;
+
     const session = sessionManager.createSession(
       {
-        name: opts.session,
+        name: sessionName,
         provider: config.provider,
         model: config.model || '',
         speckit: 'debugger',
@@ -177,7 +183,27 @@ program
     );
 
     console.log(chalk.yellow('\n  🔍 Live Debugger started'));
+    console.log(chalk.dim(`  Session: ${chalk.bold(sessionName)} (${session.id})`));
     console.log(chalk.dim('  AI will analyze errors as they appear. Press Ctrl+C to stop.\n'));
+
+    // Optionally launch Web UI
+    let webServer: Awaited<ReturnType<typeof createWebServer>> | undefined;
+    if (opts.ui) {
+      const uiPort = parseInt(opts.port as string, 10) || 3000;
+      webServer = createWebServer({
+        port: uiPort,
+        sessionManager,
+        apiKey: config.apiKey,
+        provider: config.provider,
+        model: config.model,
+        projectDir: process.cwd(),
+      });
+      await webServer.start();
+      console.log(
+        chalk.green(`  ✓ Web UI running at ${chalk.bold(`http://localhost:${uiPort}`)}\n`) +
+        chalk.dim(`    Open the Sessions tab to monitor this debug session.\n`)
+      );
+    }
 
     // Build optional notification config from CLI flags
     const notifications = (() => {
@@ -204,6 +230,8 @@ program
       logLevels: opts.logLevel
         ? (opts.logLevel as string).split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean)
         : undefined,
+      // Wire up Socket.IO for real-time Web UI updates
+      io: webServer?.io,
       onLog: (line) => process.stdout.write(chalk.dim(`  ${line}\n`)),
       onAnalysis: (analysis) => {
         console.log(chalk.bold.yellow('\n  ━━ AI Analysis ━━━━━━━━━━━━━━━━━━━━━━━━'));
@@ -230,6 +258,9 @@ program
       debugger_.stop();
       sessionManager.persistSession(session);
       console.log(chalk.green('\n  Debugger stopped. Session saved.\n'));
+      if (webServer) {
+        void webServer.stop();
+      }
       process.exit(0);
     });
   });

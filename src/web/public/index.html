@@ -44,6 +44,30 @@
         <div id="session-detail-content"></div>
       </section>
 
+      <!-- Debugger Detail Page -->
+      <section id="page-debugger-detail" class="page debugger-detail-page">
+        <div class="dbg-header">
+          <button id="dbg-back-btn" class="btn btn-ghost">← Back</button>
+          <h2 id="dbg-session-title" class="dbg-title"></h2>
+          <span id="dbg-session-id-badge" class="tag" style="font-family:monospace;font-size:0.72rem"></span>
+          <span id="dbg-session-status-badge" class="status-pill"></span>
+          <div class="dbg-header-spacer"></div>
+          <span id="dbg-live-dot" class="dbg-live-dot hidden"></span>
+          <button id="dbg-subscribe-btn" class="btn btn-secondary btn-sm">Subscribe Live</button>
+        </div>
+        <div class="dbg-workspace">
+          <div class="dbg-log-panel">
+            <div class="section-label dbg-panel-label">Log Feed</div>
+            <div id="dbg-log-feed"></div>
+          </div>
+          <div class="dbg-analysis-panel">
+            <div class="section-label dbg-panel-label">AI Analysis</div>
+            <div id="dbg-analysis-list"></div>
+          </div>
+          <div id="dbg-info-panel" class="dbg-info-panel"></div>
+        </div>
+      </section>
+
       <!-- Settings Page -->
       <section id="page-settings" class="page">
         <div class="page-header">
@@ -214,6 +238,111 @@
       </div>
       <div class="modal-footer">
         <button id="hil-submit-btn" class="btn btn-primary">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jira Modal -->
+  <div id="jira-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>🎫 Create Jira Ticket</h2>
+        <button id="jira-modal-close" class="btn btn-ghost">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="jira-base-url">Jira Base URL</label>
+          <input type="text" id="jira-base-url" placeholder="https://yourcompany.atlassian.net" />
+        </div>
+        <div class="form-group">
+          <label for="jira-email">Email</label>
+          <input type="email" id="jira-email" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label for="jira-api-token">API Token</label>
+          <input type="password" id="jira-api-token" placeholder="Your Jira API token" />
+        </div>
+        <div class="form-group">
+          <label for="jira-project-key">Project Key</label>
+          <input type="text" id="jira-project-key" placeholder="e.g. OPS" />
+        </div>
+        <div class="form-group">
+          <label for="jira-issue-type">Issue Type</label>
+          <input type="text" id="jira-issue-type" value="Bug" />
+        </div>
+        <div class="form-group">
+          <label for="jira-summary">Summary</label>
+          <input type="text" id="jira-summary" placeholder="Issue summary" />
+        </div>
+        <div class="form-group">
+          <label for="jira-priority">Priority</label>
+          <select id="jira-priority">
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="jira-labels">Labels (comma-separated)</label>
+          <input type="text" id="jira-labels" placeholder="e.g. bug, production" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="jira-cancel-btn" class="btn btn-ghost" style="margin-right:8px">Cancel</button>
+        <button id="jira-submit-btn" class="btn btn-primary">Create Ticket</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Git Fix Modal -->
+  <div id="git-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>⚙ Apply Git Fix</h2>
+        <button id="git-modal-close" class="btn btn-ghost">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="git-repo-path">Repo Path</label>
+          <input type="text" id="git-repo-path" placeholder="/path/to/your/repo" />
+        </div>
+        <div class="form-group">
+          <label for="git-token">Token (optional)</label>
+          <input type="password" id="git-token" placeholder="GitHub personal access token" />
+        </div>
+        <div class="form-group">
+          <label for="git-remote-url">Remote URL (optional)</label>
+          <input type="text" id="git-remote-url" placeholder="https://github.com/org/repo" />
+        </div>
+        <div class="form-group">
+          <label for="git-branch">Branch</label>
+          <input type="text" id="git-branch" value="fusion-agent/auto-fix" />
+        </div>
+        <div class="form-group">
+          <label for="git-api-base-url">GitHub API URL (optional)</label>
+          <input type="text" id="git-api-base-url" placeholder="https://api.github.com" />
+        </div>
+        <div class="form-group">
+          <label for="git-commit-message">Commit Message</label>
+          <input type="text" id="git-commit-message" placeholder="fix: auto-fix from fusion-agent" />
+        </div>
+        <div class="form-group">
+          <label for="git-pr-title">PR Title (optional)</label>
+          <input type="text" id="git-pr-title" placeholder="Auto-fix from Live Debugger" />
+        </div>
+        <div class="form-group">
+          <label for="git-base-branch">Base Branch (optional)</label>
+          <input type="text" id="git-base-branch" placeholder="main" />
+        </div>
+        <div class="form-group">
+          <label for="git-guardrails">Guardrails (one per line)</label>
+          <textarea id="git-guardrails" class="vibe-textarea" rows="3" placeholder="One guardrail rule per line"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="git-cancel-btn" class="btn btn-ghost" style="margin-right:8px">Cancel</button>
+        <button id="git-submit-btn" class="btn btn-primary">Apply Fix</button>
       </div>
     </div>
   </div>

@@ -858,3 +858,299 @@ body {
 
 /* hidden utility (reuse) */
 .hidden { display: none !important; }
+
+/* ============================================================
+   LIVE DEBUGGER DETAIL
+   ============================================================ */
+
+.main-content.debugger-mode {
+  overflow: hidden;
+  padding: 0;
+}
+
+.debugger-detail-page.active {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Header bar */
+.dbg-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.dbg-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dbg-header-spacer { flex: 1; }
+
+/* Three-column workspace */
+.dbg-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Shared panel base */
+.dbg-log-panel,
+.dbg-analysis-panel,
+.dbg-info-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+
+.dbg-log-panel {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.dbg-analysis-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.dbg-info-panel {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: none;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+}
+
+/* Panel label header */
+.dbg-panel-label {
+  padding: 10px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+
+/* Scrollable feed areas */
+#dbg-log-feed {
+  flex: 1;
+  overflow-y: auto;
+}
+
+#dbg-analysis-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+/* Log lines */
+.dbg-log-line {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.5;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.dbg-log-line.log-matched {
+  background: rgba(255, 200, 0, 0.1);
+  color: var(--warning);
+  border-left: 3px solid var(--warning);
+}
+
+.dbg-log-line .log-ts {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+/* Analysis cards */
+.analysis-card {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+.analysis-card .analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.analysis-card .analysis-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.analysis-card .analysis-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.analysis-card .analysis-duration {
+  font-size: 0.72rem;
+  color: var(--accent);
+  background: rgba(108, 99, 255, 0.12);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.analysis-prompt-toggle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.analysis-prompt-toggle:hover { color: var(--text); }
+
+/* Collapsible prompt */
+.analysis-card .analysis-prompt {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  background: var(--bg);
+  border-radius: 4px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease, padding 0.2s ease;
+  padding: 0;
+}
+
+.analysis-card.expanded .analysis-prompt {
+  max-height: 300px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.analysis-card .analysis-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.analysis-card .analysis-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Badges */
+.badge-notified {
+  background: rgba(82, 201, 130, 0.15);
+  color: var(--success);
+  border: 1px solid var(--success);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.badge-fix-applied {
+  background: rgba(108, 99, 255, 0.15);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.badge-jira {
+  background: rgba(0, 120, 215, 0.15);
+  color: #4da6ff;
+  border: 1px solid #4da6ff;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.badge-jira:hover { background: rgba(0, 120, 215, 0.25); }
+
+.badge-git {
+  background: rgba(82, 201, 130, 0.1);
+  color: var(--success);
+  border: 1px solid var(--success);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.badge-git:hover { background: rgba(82, 201, 130, 0.2); }
+
+/* Action buttons on analysis card footer */
+.dbg-action-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dbg-action-btn:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* Live indicator dot */
+.dbg-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--success);
+  animation: live-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--success); }
+  50%       { opacity: 0.5; box-shadow: 0 0 2px var(--success); }
+}
+
+/* Info panel content */
+.dbg-info-section { margin-bottom: 16px; }
+.dbg-info-section .section-label { margin-bottom: 6px; }
+
+.dbg-info-row {
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+  word-break: break-all;
+  line-height: 1.45;
+}
+.dbg-info-row strong {
+  color: var(--text-muted);
+  font-weight: 500;
+}

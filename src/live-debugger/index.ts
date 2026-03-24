@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { Session } from '../session/session';
+import { DebuggerTurnMeta } from '../session/session';
 import { LogWatcher } from './log-watcher';
 import { ServiceConnector, ServiceConnectionOptions } from './service-connector';
 import { logger } from '../utils/logger';
@@ -40,6 +41,14 @@ export interface LiveDebuggerOptions {
    * are accepted. Combined with `logPatterns` using OR logic.
    */
   logLevels?: string[];
+  /**
+   * Optional Socket.IO server instance. When provided, real-time events are
+   * pushed to all clients subscribed to `debugger:<sessionId>`.
+   * Accepted events: `debugger:log`, `debugger:analysis`, `debugger:error`.
+   */
+  io?: {
+    to(room: string): { emit(event: string, ...args: unknown[]): void };
+  };
 }
 
 export class LiveDebugger extends EventEmitter {
@@ -55,14 +64,18 @@ export class LiveDebugger extends EventEmitter {
   private flushTimer?: ReturnType<typeof setTimeout>;
   private connector?: ServiceConnector | LogWatcher;
   private analyzing = false;
+  private io?: LiveDebuggerOptions['io'];
+  private sessionId: string;
 
   constructor(options: LiveDebuggerOptions) {
     super();
     this.session = options.session;
+    this.sessionId = options.session.id;
     this.batchSize = options.batchSize ?? 20;
     this.maxWaitSeconds = options.maxWaitSeconds ?? 30;
     this.retryCount = options.retryCount ?? 3;
     this.retryDelayMs = options.retryDelayMs ?? 1000;
+    this.io = options.io;
 
     if (options.notifications) {
       this.notificationManager = new NotificationManager(options.notifications);
@@ -139,6 +152,12 @@ export class LiveDebugger extends EventEmitter {
       if (this.lineFilter && !this.lineFilter(line)) return;
 
       this.emit('log', line);
+      // Push to Web UI in real time
+      this.io?.to(`debugger:${this.sessionId}`).emit('debugger:log', {
+        sessionId: this.sessionId,
+        line,
+        timestamp: new Date().toISOString(),
+      });
       this.logBatch.push(line);
 
       // Reset flush timer
@@ -178,13 +197,52 @@ export class LiveDebugger extends EventEmitter {
 
       const logContent = lines.join('\n');
       const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.\n\n\`\`\`\n${logContent}\n\`\`\``;
+      const promptSentAt = new Date().toISOString();
 
       const analysis = await this.callAI(prompt);
-      this.emit('analysis', analysis);
+      const responseReceivedAt = new Date().toISOString();
+
+      // Build debugger metadata for the session turn
+      const meta: DebuggerTurnMeta = {
+        matchedLogLines: lines,
+        promptSentAt,
+        responseReceivedAt,
+        notificationSent: false,
+        fixApplied: false,
+      };
+
+      // Attach meta to the most-recently created turn
+      const turns = this.session.getTurns();
+      const lastTurn = turns[turns.length - 1];
+      if (lastTurn) {
+        lastTurn.debuggerMeta = meta;
+      }
+
+      this.emit('analysis', analysis, meta);
+      // Push to Web UI in real time
+      this.io?.to(`debugger:${this.sessionId}`).emit('debugger:analysis', {
+        sessionId: this.sessionId,
+        prompt,
+        analysis,
+        meta,
+      });
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.error(`Live debugger analysis error (all retries exhausted): ${error.message}`);
-      await this.notifyFailure(error, lines);
+      const notified = await this.notifyFailure(error, lines);
+      if (notified) {
+        // Mark the last turn's meta as notified if it exists
+        const turns = this.session.getTurns();
+        const lastTurn = turns[turns.length - 1];
+        if (lastTurn?.debuggerMeta) {
+          lastTurn.debuggerMeta.notificationSent = true;
+        }
+      }
+      this.io?.to(`debugger:${this.sessionId}`).emit('debugger:error', {
+        sessionId: this.sessionId,
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      });
       this.emit('error', error);
     } finally {
       this.analyzing = false;
@@ -249,9 +307,9 @@ export class LiveDebugger extends EventEmitter {
     throw lastError!;
   }
 
-  /** Send a notification when all AI retries are exhausted. */
-  private async notifyFailure(error: Error, logLines: string[]): Promise<void> {
-    if (!this.notificationManager) return;
+  /** Send a notification when all AI retries are exhausted. Returns true if notification was sent. */
+  private async notifyFailure(error: Error, logLines: string[]): Promise<boolean> {
+    if (!this.notificationManager) return false;
     try {
       await this.notificationManager.send({
         title: '⚠ Live Debugger: AI analysis failed',
@@ -262,8 +320,10 @@ export class LiveDebugger extends EventEmitter {
         severity: 'error',
         service: 'live-debugger',
       });
+      return true;
     } catch (notifyErr) {
       logger.error(`Live debugger notification error: ${notifyErr}`);
+      return false;
     }
   }
 

@@ -7,6 +7,7 @@ import { SessionManager } from '../session/session-manager';
 import { createSessionRoutes } from './routes/sessions';
 import { createSettingsRoutes } from './routes/settings';
 import { createVibeCoderRoutes, registerVibeCoderSocket } from './routes/vibe-coder';
+import { createDebuggerRoutes } from './routes/debugger';
 import { logger } from '../utils/logger';
 
 export interface WebServerOptions {
@@ -56,6 +57,7 @@ export function createWebServer(options: WebServerOptions) {
   app.use('/api/sessions', createSessionRoutes(options.sessionManager));
   app.use('/api/settings', createSettingsRoutes());
   app.use('/api/vibe-coder', createVibeCoderRoutes(options.sessionManager, vibeCoderOptions));
+  app.use('/api/debugger', createDebuggerRoutes(options.sessionManager));
 
   // Catch-all: serve index.html for SPA-style navigation
   app.get('*', (_req, res) => {
@@ -73,6 +75,16 @@ export function createWebServer(options: WebServerOptions) {
 
     socket.on('unsubscribe:session', (sessionId: string) => {
       void socket.leave(`session:${sessionId}`);
+    });
+
+    // Live Debugger: subscribe to real-time log and analysis events
+    socket.on('subscribe:debugger', (sessionId: string) => {
+      void socket.join(`debugger:${sessionId}`);
+      logger.debug(`Client ${socket.id} subscribed to debugger session ${sessionId}`);
+    });
+
+    socket.on('unsubscribe:debugger', (sessionId: string) => {
+      void socket.leave(`debugger:${sessionId}`);
     });
 
     // Vibe Coder: interactive chat + autonomous mode
