@@ -149,6 +149,7 @@ program
   .option('--notify-webhook <url>', 'HTTP webhook URL for failure notifications')
   .option('--log-pattern <patterns>', 'Comma-separated regex patterns; only matching lines are analyzed')
   .option('--log-level <levels>', 'Comma-separated log levels to watch (e.g. ERROR,WARN,FATAL)')
+  .option('--log-token-limit <n>', 'Max tokens to include in each AI prompt; auto-detected from 429 errors if omitted')
   .option('--ui', 'Also launch the Web UI alongside the debugger')
   .option('--port <port>', 'Web UI port when --ui is used (default: 3000)', '3000')
   .action(async (opts) => {
@@ -230,6 +231,7 @@ program
       logLevels: opts.logLevel
         ? (opts.logLevel as string).split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean)
         : undefined,
+      logTokenLimit: opts.logTokenLimit ? parseInt(opts.logTokenLimit as string, 10) : undefined,
       // Wire up Socket.IO for real-time Web UI updates
       io: webServer?.io,
       onLog: (line) => process.stdout.write(chalk.dim(`  ${line}\n`)),

@@ -330,6 +330,11 @@ Analysis tuning:
   --log-pattern <patterns>   Comma-separated regex patterns; only matching lines
                              are analysed. Overrides the default error-keyword gate.
   --log-level <levels>       Comma-separated log levels to watch (e.g. ERROR,WARN,FATAL)
+  --log-token-limit <n>      Maximum number of tokens to include in a single AI prompt.
+                             Oldest log lines are trimmed first to stay within budget.
+                             When omitted the limit is extracted automatically from
+                             the first 429 "Request too large" error and applied to
+                             all subsequent flushes. (~4 chars per token estimate)
 
 Resilience:
   --retry <n>                AI retry attempts on failure (default: 3)
@@ -353,6 +358,9 @@ ai-agent debug --file app.log --log-level ERROR,FATAL
 
 # Watch lines matching a custom pattern and open the Web UI
 ai-agent debug --docker my-api --log-pattern "OOM|killed|segfault" --ui
+
+# Cap prompt size to avoid 429 token-limit errors
+ai-agent debug --docker my-container --log-token-limit 25000
 
 # Retry up to 5 times, then post to Slack, with a custom session name
 ai-agent debug --file app.log --retry 5 --notify-slack https://hooks.slack.com/... \
@@ -679,6 +687,9 @@ const debugger_ = new LiveDebugger({
   logLevels: ['ERROR', 'WARN', 'FATAL'],   // only these levels
   logPatterns: ['OOM', 'killed'],           // OR these patterns
 
+  // Token budget: oldest lines are trimmed first to fit.
+  // When omitted the limit is auto-detected from 429 errors.
+  logTokenLimit: 25000,
   // Notification when all retries are exhausted
   notifications: {
     slack: { enabled: true, webhookUrl: 'https://hooks.slack.com/...' },
@@ -986,6 +997,7 @@ The live debugger is designed to never crash your process:
 | Scenario | Behaviour |
 |----------|-----------|
 | AI provider call fails | Retried with exponential back-off (configurable `retryCount` / `retryDelayMs`) |
+| `429 Request too large` | Token limit extracted from the error message, prompt is automatically re-truncated, and the request is retried with the reduced payload. Set `--log-token-limit` to pre-configure the limit before the first error |
 | All retries exhausted | `'error'` event emitted; notification sent if `notifications` is configured |
 | Log file not found | `'error'` event emitted; no exception thrown |
 | Log file I/O error | `'error'` event emitted |
@@ -1015,6 +1027,66 @@ npm run build
 npm test
 npm run dev -- chat   # run CLI in dev mode
 ```
+
+---
+
+## Live Debugger — Docker Test Stack
+
+A self-contained Docker Compose stack is provided under `deploy/live-debugger-dummy-server/` for end-to-end testing of the live debugger and Web UI.
+
+### What it does
+
+| Container | Purpose |
+|-----------|---------|
+| `fusion-live-debugger-dummy` | Node.js dummy server that intentionally emits error events every 5 seconds (DB connection failures, missing-file errors, type errors, JSON parse errors) on port 8080 |
+| `fusion-agent-ui` | The Web UI — builds from the project root Dockerfile and serves on port 3000 |
+
+The host live debugger writes session files to `~/.fusion-agent/sessions/`. The UI container bind-mounts that directory (`${HOME}/.fusion-agent:/root/.fusion-agent`) so sessions created by the CLI debugger are immediately visible in the browser.
+
+### Quick start
+
+```bash
+# Build the project first (required for Docker image)
+npm install && npm run build
+
+# Run the full stack: dummy server + live debugger + Web UI
+cd deploy/live-debugger-dummy-server
+OPENAI_API_KEY=sk-... ./start.sh debug --provider openai --model gpt-4o
+
+# With a token limit to avoid 429 errors on low-tier plans
+OPENAI_API_KEY=sk-... ./start.sh debug --provider openai --model gpt-4o --log-token-limit 25000
+
+# Start containers only (no debugger)
+./start.sh start-only
+```
+
+Open `http://localhost:3000` to see the Web UI. The `live-debug` session appears in the Sessions tab and updates automatically as the debugger analyses errors.
+
+### Dummy server routes
+
+| Route | Description |
+|-------|-------------|
+| `GET /health` | Health check — returns `{ ok: true }` |
+| `GET /crash` | Triggers an intentional JSON parse exception |
+| `GET /db-check` | Attempts a TCP connection to a non-existent Postgres instance |
+
+### Teams notifications
+
+Pass a Teams webhook URL to enable notifications when the debugger exhausts its retries:
+
+```bash
+OPENAI_API_KEY=sk-... TEAMS_WEBHOOK_URL=https://... ./start.sh debug --provider openai --model gpt-4o
+```
+
+The `cluster-debug-rules.yaml` in the same directory configures the rules and notification settings used by the debugger.
+
+---
+
+## Web UI — Real-time Session Updates
+
+The Web UI tracks external changes to session files automatically. When a live debugger running on the host (or in another process) writes a new analysis turn to `~/.fusion-agent/sessions/<id>.json`, the server detects the change via `fs.watch` and emits a `session:updated` socket event to all subscribed clients. The browser re-fetches and re-renders the session detail page without a manual refresh.
+
+Each call to `GET /api/sessions/:id` always reads the latest data from disk — there is no stale in-memory cache — so page refreshes and re-opens are always consistent.
 
 ---
 

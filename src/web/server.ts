@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import path from 'path';
+import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import { SessionManager } from '../session/session-manager';
 import { createSessionRoutes } from './routes/sessions';
@@ -95,10 +96,33 @@ export function createWebServer(options: WebServerOptions) {
     });
   });
 
+  function watchSessionsDir(): void {
+    const sessionsDir = options.sessionManager.sessionsDir;
+    if (!fs.existsSync(sessionsDir)) return;
+    const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    try {
+      fs.watch(sessionsDir, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.json')) return;
+        const sessionId = filename.replace(/\.json$/, '');
+        const existing = debounceTimers.get(sessionId);
+        if (existing) clearTimeout(existing);
+        debounceTimers.set(sessionId, setTimeout(() => {
+          debounceTimers.delete(sessionId);
+          io.to(`session:${sessionId}`).emit('session:updated', { sessionId });
+          logger.debug(`session:updated emitted for ${sessionId}`);
+        }, 300));
+      });
+      logger.debug(`Watching sessions directory for changes: ${sessionsDir}`);
+    } catch (err) {
+      logger.warn(`Could not watch sessions directory: ${err}`);
+    }
+  }
+
   function start(): Promise<void> {
     return new Promise((resolve) => {
       httpServer.listen(port, () => {
         logger.info(`AI Agent Web UI running at http://localhost:${port}`);
+        watchSessionsDir();
         resolve();
       });
     });

@@ -26,6 +26,7 @@ services:
       # Add other API keys as needed
     volumes:
       - ./cluster-debug-rules.yaml:/config/cluster-rules.yaml:ro
+      - ${HOME}/.fusion-agent:/root/.fusion-agent
     entrypoint:
       - "node"
       - "dist/cli.js"

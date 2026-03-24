@@ -188,7 +188,7 @@ echo ""
 
 cd "${REPO_ROOT}"
 
-DEBUG_ARGS=(debug --docker "${CONTAINER_NAME}" --batch 5)
+DEBUG_ARGS=(debug --docker "${CONTAINER_NAME}" --batch 5 --session live-debug)
 
 run_debugger() {
   local runner=("$@")

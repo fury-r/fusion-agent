@@ -42,6 +42,13 @@ export interface LiveDebuggerOptions {
    */
   logLevels?: string[];
   /**
+   * Maximum number of tokens to include in a single prompt sent to the AI.
+   * Lines are trimmed from the oldest first to fit within the budget.
+   * When omitted the limit is extracted automatically from the first 429
+   * "Request too large" error and applied to all subsequent flushes.
+   */
+  logTokenLimit?: number;
+  /**
    * Optional Socket.IO server instance. When provided, real-time events are
    * pushed to all clients subscribed to `debugger:<sessionId>`.
    * Accepted events: `debugger:log`, `debugger:analysis`, `debugger:error`.
@@ -66,6 +73,8 @@ export class LiveDebugger extends EventEmitter {
   private analyzing = false;
   private io?: LiveDebuggerOptions['io'];
   private sessionId: string;
+  /** Effective token limit for log prompts. Auto-detected from 429 errors when not configured. */
+  private logTokenLimit?: number;
 
   constructor(options: LiveDebuggerOptions) {
     super();
@@ -79,6 +88,10 @@ export class LiveDebugger extends EventEmitter {
 
     if (options.notifications) {
       this.notificationManager = new NotificationManager(options.notifications);
+    }
+
+    if (options.logTokenLimit && options.logTokenLimit > 0) {
+      this.logTokenLimit = options.logTokenLimit;
     }
 
     // Build the log line pre-filter when patterns or levels are configured
@@ -195,7 +208,8 @@ export class LiveDebugger extends EventEmitter {
         }
       }
 
-      const logContent = lines.join('\n');
+      const rawLogContent = lines.join('\n');
+      const logContent = this.truncateToTokenLimit(rawLogContent);
       const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.\n\n\`\`\`\n${logContent}\n\`\`\``;
       const promptSentAt = new Date().toISOString();
 
@@ -272,11 +286,30 @@ export class LiveDebugger extends EventEmitter {
   }
 
   /**
+   * Rough token estimator: ~1 token per 4 characters.
+   * Trims oldest lines first to stay within the configured budget.
+   */
+  private truncateToTokenLimit(content: string): string {
+    if (!this.logTokenLimit || this.logTokenLimit <= 0) return content;
+    // Reserve ~500 tokens for the surrounding prompt template
+    const budget = Math.max(100, this.logTokenLimit - 500);
+    const charBudget = budget * 4;
+    if (content.length <= charBudget) return content;
+    // Drop oldest lines until it fits
+    const lines = content.split('\n');
+    while (lines.length > 1 && lines.join('\n').length > charBudget) {
+      lines.shift();
+    }
+    return lines.join('\n');
+  }
+
+  /**
    * Call the AI provider with automatic retry on failure.
    * Uses exponential back-off: delay doubles after each attempt.
    */
-  private async callAI(prompt: string): Promise<string> {
+  private async callAI(initialPrompt: string): Promise<string> {
     let lastError: Error | undefined;
+    let prompt = initialPrompt;
 
     for (let attempt = 0; attempt <= this.retryCount; attempt++) {
       if (attempt > 0) {
@@ -301,6 +334,27 @@ export class LiveDebugger extends EventEmitter {
         logger.warn(
           `Live debugger AI attempt ${attempt + 1}/${this.retryCount + 1} failed: ${lastError.message}`
         );
+
+        // Auto-detect token limit from 429 "Request too large" errors and
+        // truncate the prompt before the next retry.
+        const tpmMatch = lastError.message.match(
+          /tokens per min.*?Limit\s+(\d+)/i
+        );
+        if (tpmMatch) {
+          const detected = parseInt(tpmMatch[1], 10);
+          if (!this.logTokenLimit || detected < this.logTokenLimit) {
+            this.logTokenLimit = detected;
+            logger.warn(
+              `Live debugger: auto-detected token limit ${detected} from 429 error. Truncating future prompts.`
+            );
+          }
+          // Re-truncate the current prompt for the next retry
+          const codeBlockMatch = prompt.match(/```\n([\s\S]*?)\n```/);
+          if (codeBlockMatch) {
+            const truncated = this.truncateToTokenLimit(codeBlockMatch[1]);
+            prompt = prompt.replace(codeBlockMatch[1], truncated);
+          }
+        }
       }
     }
 
