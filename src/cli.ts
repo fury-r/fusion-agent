@@ -140,8 +140,18 @@ program
   .option('-f, --file <logFile>', 'Watch a log file')
   .option('-d, --docker <container>', 'Attach to Docker container logs')
   .option('-c, --cmd <command>', 'Run and attach to a process command')
-  .option('-s, --session <name>', 'Session name', 'debug-session')
+  .option('-s, --session <name>', 'Session name (default: live-debugger-<id>)')
   .option('--batch <n>', 'Lines to batch before analysis', '20')
+  .option('--retry <n>', 'AI analysis retry attempts on failure', '3')
+  .option('--retry-delay <ms>', 'Base retry delay in ms (doubles each attempt)', '1000')
+  .option('--notify-slack <url>', 'Slack webhook URL for failure notifications')
+  .option('--notify-teams <url>', 'Microsoft Teams webhook URL for failure notifications')
+  .option('--notify-webhook <url>', 'HTTP webhook URL for failure notifications')
+  .option('--log-pattern <patterns>', 'Comma-separated regex patterns; only matching lines are analyzed')
+  .option('--log-level <levels>', 'Comma-separated log levels to watch (e.g. ERROR,WARN,FATAL)')
+  .option('--log-token-limit <n>', 'Max tokens to include in each AI prompt; auto-detected from 429 errors if omitted')
+  .option('--ui', 'Also launch the Web UI alongside the debugger')
+  .option('--port <port>', 'Web UI port when --ui is used (default: 3000)', '3000')
   .action(async (opts) => {
     const config = loadConfig({ provider: opts.provider, model: opts.model });
 
@@ -157,9 +167,13 @@ program
 
     const sessionsDir = config.sessionDir || path.join(os.homedir(), '.fusion-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
+
+    // Build session name: user-provided, else live-debugger-<shortId>
+    const sessionName = opts.session || `live-debugger-${Date.now().toString(36)}`;
+
     const session = sessionManager.createSession(
       {
-        name: opts.session,
+        name: sessionName,
         provider: config.provider,
         model: config.model || '',
         speckit: 'debugger',
@@ -170,11 +184,56 @@ program
     );
 
     console.log(chalk.yellow('\n  🔍 Live Debugger started'));
+    console.log(chalk.dim(`  Session: ${chalk.bold(sessionName)} (${session.id})`));
     console.log(chalk.dim('  AI will analyze errors as they appear. Press Ctrl+C to stop.\n'));
+
+    // Optionally launch Web UI
+    let webServer: Awaited<ReturnType<typeof createWebServer>> | undefined;
+    if (opts.ui) {
+      const uiPort = parseInt(opts.port as string, 10) || 3000;
+      webServer = createWebServer({
+        port: uiPort,
+        sessionManager,
+        apiKey: config.apiKey,
+        provider: config.provider,
+        model: config.model,
+        projectDir: process.cwd(),
+      });
+      await webServer.start();
+      console.log(
+        chalk.green(`  ✓ Web UI running at ${chalk.bold(`http://localhost:${uiPort}`)}\n`) +
+        chalk.dim(`    Open the Sessions tab to monitor this debug session.\n`)
+      );
+    }
+
+    // Build optional notification config from CLI flags
+    const notifications = (() => {
+      const slack = opts.notifySlack as string | undefined;
+      const teams = opts.notifyTeams as string | undefined;
+      const webhook = opts.notifyWebhook as string | undefined;
+      if (!slack && !teams && !webhook) return undefined;
+      return {
+        ...(slack ? { slack: { enabled: true, webhookUrl: slack } } : {}),
+        ...(teams ? { teams: { enabled: true, webhookUrl: teams } } : {}),
+        ...(webhook ? { webhook: { enabled: true, url: webhook } } : {}),
+      };
+    })();
 
     const debugger_ = new LiveDebugger({
       session,
       batchSize: parseInt(opts.batch, 10),
+      retryCount: parseInt(opts.retry, 10),
+      retryDelayMs: parseInt(opts.retryDelay, 10),
+      notifications,
+      logPatterns: opts.logPattern
+        ? (opts.logPattern as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+        : undefined,
+      logLevels: opts.logLevel
+        ? (opts.logLevel as string).split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean)
+        : undefined,
+      logTokenLimit: opts.logTokenLimit ? parseInt(opts.logTokenLimit as string, 10) : undefined,
+      // Wire up Socket.IO for real-time Web UI updates
+      io: webServer?.io,
       onLog: (line) => process.stdout.write(chalk.dim(`  ${line}\n`)),
       onAnalysis: (analysis) => {
         console.log(chalk.bold.yellow('\n  ━━ AI Analysis ━━━━━━━━━━━━━━━━━━━━━━━━'));
@@ -182,6 +241,10 @@ program
         console.log(chalk.yellow('  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'));
         sessionManager.persistSession(session);
       },
+    });
+
+    debugger_.on('error', (err: Error) => {
+      console.error(chalk.red(`\n  ⚠ Live Debugger error: ${err.message}\n`));
     });
 
     if (opts.file) {
@@ -197,6 +260,9 @@ program
       debugger_.stop();
       sessionManager.persistSession(session);
       console.log(chalk.green('\n  Debugger stopped. Session saved.\n'));
+      if (webServer) {
+        void webServer.stop();
+      }
       process.exit(0);
     });
   });
@@ -256,7 +322,14 @@ program
     const sessionsDir = config.sessionDir || path.join(os.homedir(), '.fusion-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
 
-    const server = createWebServer({ port: config.port, sessionManager });
+    const server = createWebServer({
+      port: config.port,
+      sessionManager,
+      apiKey: config.apiKey,
+      provider: config.provider,
+      model: config.model,
+      projectDir: process.cwd(),
+    });
     await server.start();
 
     console.log(chalk.green(`\n  ✓ AI Agent Web UI running at ${chalk.bold(`http://localhost:${config.port}`)}`));

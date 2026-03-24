@@ -5,7 +5,7 @@ import { createProvider, ProviderName } from '../providers';
 import { logger } from '../utils/logger';
 
 export class SessionManager {
-  private sessionsDir: string;
+  readonly sessionsDir: string;
   private sessions: Map<string, Session> = new Map();
 
   constructor(sessionsDir: string) {
@@ -90,8 +90,14 @@ export class SessionManager {
   }
 
   exportSession(sessionId: string): string {
-    const session = this.loadSession(sessionId);
-    return JSON.stringify(session.toJSON(), null, 2);
+    // Always read from disk so callers get the latest persisted state,
+    // even if the session was written by an external process (e.g. the CLI
+    // live debugger running alongside the Web UI).
+    const filePath = this.getSessionPath(sessionId);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+    return fs.readFileSync(filePath, 'utf-8');
   }
 
   private getSessionPath(sessionId: string): string {

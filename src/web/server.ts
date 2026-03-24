@@ -2,10 +2,13 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import path from 'path';
+import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import { SessionManager } from '../session/session-manager';
 import { createSessionRoutes } from './routes/sessions';
 import { createSettingsRoutes } from './routes/settings';
+import { createVibeCoderRoutes, registerVibeCoderSocket } from './routes/vibe-coder';
+import { createDebuggerRoutes } from './routes/debugger';
 import { logger } from '../utils/logger';
 
 export interface WebServerOptions {
@@ -13,6 +16,10 @@ export interface WebServerOptions {
   sessionManager: SessionManager;
   apiKey?: string;
   provider?: string;
+  /** Default AI model for new vibe-coder sessions (falls back to provider default). */
+  model?: string;
+  /** Default project directory for new vibe-coder sessions (falls back to process.cwd()). */
+  projectDir?: string;
 }
 
 export function createWebServer(options: WebServerOptions) {
@@ -39,9 +46,19 @@ export function createWebServer(options: WebServerOptions) {
   // Serve static files
   app.use(express.static(path.join(__dirname, 'public')));
 
+  const vibeCoderOptions = {
+    sessionManager: options.sessionManager,
+    apiKey: options.apiKey,
+    provider: options.provider,
+    model: options.model,
+    projectDir: options.projectDir,
+  };
+
   // API routes
   app.use('/api/sessions', createSessionRoutes(options.sessionManager));
   app.use('/api/settings', createSettingsRoutes());
+  app.use('/api/vibe-coder', createVibeCoderRoutes(options.sessionManager, vibeCoderOptions));
+  app.use('/api/debugger', createDebuggerRoutes(options.sessionManager));
 
   // Catch-all: serve index.html for SPA-style navigation
   app.get('*', (_req, res) => {
@@ -61,15 +78,51 @@ export function createWebServer(options: WebServerOptions) {
       void socket.leave(`session:${sessionId}`);
     });
 
+    // Live Debugger: subscribe to real-time log and analysis events
+    socket.on('subscribe:debugger', (sessionId: string) => {
+      void socket.join(`debugger:${sessionId}`);
+      logger.debug(`Client ${socket.id} subscribed to debugger session ${sessionId}`);
+    });
+
+    socket.on('unsubscribe:debugger', (sessionId: string) => {
+      void socket.leave(`debugger:${sessionId}`);
+    });
+
+    // Vibe Coder: interactive chat + autonomous mode
+    registerVibeCoderSocket(socket, vibeCoderOptions);
+
     socket.on('disconnect', () => {
       logger.debug(`Web UI client disconnected: ${socket.id}`);
     });
   });
 
+  function watchSessionsDir(): void {
+    const sessionsDir = options.sessionManager.sessionsDir;
+    if (!fs.existsSync(sessionsDir)) return;
+    const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    try {
+      fs.watch(sessionsDir, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.json')) return;
+        const sessionId = filename.replace(/\.json$/, '');
+        const existing = debounceTimers.get(sessionId);
+        if (existing) clearTimeout(existing);
+        debounceTimers.set(sessionId, setTimeout(() => {
+          debounceTimers.delete(sessionId);
+          io.to(`session:${sessionId}`).emit('session:updated', { sessionId });
+          logger.debug(`session:updated emitted for ${sessionId}`);
+        }, 300));
+      });
+      logger.debug(`Watching sessions directory for changes: ${sessionsDir}`);
+    } catch (err) {
+      logger.warn(`Could not watch sessions directory: ${err}`);
+    }
+  }
+
   function start(): Promise<void> {
     return new Promise((resolve) => {
       httpServer.listen(port, () => {
         logger.info(`AI Agent Web UI running at http://localhost:${port}`);
+        watchSessionsDir();
         resolve();
       });
     });

@@ -1,0 +1,19 @@
+version: "1.0"
+
+rules:
+  canAutoFix:
+    - id: always-notify
+      name: Always Notify
+      description: Notify on any error, never auto-fix
+      trigger: ".*"
+      action:
+        type: notify-only
+      requireApproval: true
+  avoid: []
+  requireApproval:
+    - notify-only
+
+notifications:
+  teams:
+    enabled: true
+    webhookUrl: "${TEAMS_WEBHOOK_URL}"

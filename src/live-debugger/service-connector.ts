@@ -85,7 +85,13 @@ export class ServiceConnector extends EventEmitter {
     this.child.stderr?.on('data', (data: Buffer) => {
       stderrBuffer = processBuffer(stderrBuffer, data);
     });
+    this.child.on('error', (err) => {
+      logger.error(`Process connector error: ${err.message}`);
+      this.emit('error', err);
+      this.running = false;
+    });
     this.child.on('exit', (code) => {
+      if (!this.running) return; // already handled by error handler
       this.emit('exit', code);
       this.running = false;
     });
@@ -109,7 +115,13 @@ export class ServiceConnector extends EventEmitter {
     };
     this.child.stdout?.on('data', processData);
     this.child.stderr?.on('data', processData);
+    this.child.on('error', (err) => {
+      logger.error(`Docker connector error: ${err.message}`);
+      this.emit('error', err);
+      this.running = false;
+    });
     this.child.on('exit', (code) => {
+      if (!this.running) return; // already handled by error handler
       this.emit('exit', code);
       this.running = false;
     });
@@ -144,7 +156,11 @@ export class ServiceConnector extends EventEmitter {
   stop(): void {
     this.running = false;
     if (this.child) {
-      this.child.kill('SIGTERM');
+      try {
+        this.child.kill('SIGTERM');
+      } catch (err) {
+        logger.error(`Error stopping process connector: ${err}`);
+      }
       this.child = undefined;
     }
     if (this.pollInterval) {

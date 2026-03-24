@@ -28,21 +28,34 @@ export class LogWatcher extends EventEmitter {
 
   start(): void {
     if (!fs.existsSync(this.filePath)) {
-      throw new Error(`Log file not found: ${this.filePath}`);
+      const err = new Error(`Log file not found: ${this.filePath}`);
+      logger.error(err.message);
+      this.emit('error', err);
+      return;
     }
 
-    // Emit tail of existing content
-    const content = fs.readFileSync(this.filePath, 'utf-8');
-    const lines = content.split('\n').filter(Boolean);
-    const tailLines = lines.slice(-this.tailLines);
-    for (const line of tailLines) {
-      this.emit('line', line);
-    }
+    try {
+      // Emit tail of existing content
+      const content = fs.readFileSync(this.filePath, 'utf-8');
+      const lines = content.split('\n').filter(Boolean);
+      const tailLines = lines.slice(-this.tailLines);
+      for (const line of tailLines) {
+        this.emit('line', line);
+      }
 
-    this.fileSize = fs.statSync(this.filePath).size;
+      this.fileSize = fs.statSync(this.filePath).size;
+    } catch (err) {
+      logger.error(`Log watcher failed to read initial content: ${err}`);
+      this.emit('error', err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
 
     this.watcher = chokidar.watch(this.filePath, { persistent: true });
     this.watcher.on('change', () => this.onFileChange());
+    this.watcher.on('error', (err) => {
+      logger.error(`Log watcher chokidar error: ${err}`);
+      this.emit('error', err instanceof Error ? err : new Error(String(err)));
+    });
     logger.debug(`Log watcher started: ${this.filePath}`);
   }
 

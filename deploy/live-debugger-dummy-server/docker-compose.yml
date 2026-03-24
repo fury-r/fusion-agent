@@ -1,0 +1,39 @@
+services:
+  live-debugger-dummy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fusion-live-debugger-dummy
+    environment:
+      PORT: "8080"
+      ERROR_INTERVAL_MS: "5000"
+      DUMMY_DB_HOST: "127.0.0.1"
+      DUMMY_DB_PORT: "5432"
+      TEAMS_WEBHOOK_URL: ""
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./cluster-debug-rules.yaml:/config/cluster-rules.yaml:ro
+    restart: unless-stopped
+  fusion-agent-ui:
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile
+    image: fusion-agent:latest
+    container_name: fusion-agent-ui
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      # Add other API keys as needed
+    volumes:
+      - ./cluster-debug-rules.yaml:/config/cluster-rules.yaml:ro
+      - ${HOME}/.fusion-agent:/root/.fusion-agent
+    entrypoint:
+      - "node"
+      - "dist/cli.js"
+      - "ui"
+    command:
+      - "--port"
+      - "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
