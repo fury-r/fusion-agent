@@ -362,6 +362,7 @@
   // ---- Status pill -------------------------------------------
 
   var VALID_STATUSES = { 'idle': true, 'running': true, 'waiting-hil': true, 'completed': true, 'stopped': true, 'timed-out': true };
+  var SAFE_SESSION_STATUSES = { active: true, idle: true, running: true, completed: true, paused: true, stopped: true, error: true };
 
   function setVibeStatus(status) {
     var pill = document.getElementById('vibe-status-pill');
@@ -644,8 +645,7 @@
     document.getElementById('dbg-session-id-badge').textContent = session.id.slice(0, 8) + '…';
     var statusBadge = document.getElementById('dbg-session-status-badge');
     statusBadge.textContent = session.status;
-    var SAFE_STATUSES = { active: true, idle: true, running: true, completed: true, paused: true, stopped: true, error: true };
-    statusBadge.className = 'status-pill status-' + (SAFE_STATUSES[session.status] ? session.status : 'idle');
+    statusBadge.className = 'status-pill status-' + (SAFE_SESSION_STATUSES[session.status] ? session.status : 'idle');
 
     // Reset subscribe button
     var subBtn = document.getElementById('dbg-subscribe-btn');

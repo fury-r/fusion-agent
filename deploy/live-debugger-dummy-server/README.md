@@ -28,7 +28,7 @@ bash deploy/live-debugger-dummy-server/start.sh debug --provider openai --model 
 
 Optional: configure Teams notifications in the dummy server YAML config:
 
-Edit [deploy/live-debugger-dummy-server/docker-compose.yml](/mnt/d/fusion-agent/deploy/live-debugger-dummy-server/docker-compose.yml) and set:
+Edit [`deploy/live-debugger-dummy-server/docker-compose.yml`](docker-compose.yml) and set:
 
 ```yaml
 environment:
