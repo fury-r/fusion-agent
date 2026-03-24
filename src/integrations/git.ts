@@ -213,7 +213,7 @@ export class GitPatchApplier {
     }
   }
 
-  private git(args: string[], env: NodeJS.ProcessEnv): Promise<{ stdout: string; stderr: string }> {
+  private git(args: string[], env: Record<string, string | undefined>): Promise<{ stdout: string; stderr: string }> {
     return execFileAsync('git', args, { cwd: this.config.repoPath, env });
   }
 

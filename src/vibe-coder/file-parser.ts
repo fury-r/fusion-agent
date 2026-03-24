@@ -11,7 +11,7 @@ import { VibeCoderFileChange } from './types';
 export function extractFileBlocks(text: string): VibeCoderFileChange[] {
   const results: VibeCoderFileChange[] = [];
   // language part is optional; colon + filepath is the key indicator
-  const regex = /```[\w.+\-]*:([^\n`]+)\n([\s\S]*?)```/g;
+  const regex = /```[\w.+-]*:([^\n`]+)\n([\s\S]*?)```/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
     const filePath = match[1].trim();
