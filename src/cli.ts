@@ -145,6 +145,7 @@ program
   .option('--retry <n>', 'AI analysis retry attempts on failure', '3')
   .option('--retry-delay <ms>', 'Base retry delay in ms (doubles each attempt)', '1000')
   .option('--notify-slack <url>', 'Slack webhook URL for failure notifications')
+  .option('--notify-teams <url>', 'Microsoft Teams webhook URL for failure notifications')
   .option('--notify-webhook <url>', 'HTTP webhook URL for failure notifications')
   .option('--log-pattern <patterns>', 'Comma-separated regex patterns; only matching lines are analyzed')
   .option('--log-level <levels>', 'Comma-separated log levels to watch (e.g. ERROR,WARN,FATAL)')
@@ -181,10 +182,12 @@ program
     // Build optional notification config from CLI flags
     const notifications = (() => {
       const slack = opts.notifySlack as string | undefined;
+      const teams = opts.notifyTeams as string | undefined;
       const webhook = opts.notifyWebhook as string | undefined;
-      if (!slack && !webhook) return undefined;
+      if (!slack && !teams && !webhook) return undefined;
       return {
         ...(slack ? { slack: { enabled: true, webhookUrl: slack } } : {}),
+        ...(teams ? { teams: { enabled: true, webhookUrl: teams } } : {}),
         ...(webhook ? { webhook: { enabled: true, url: webhook } } : {}),
       };
     })();

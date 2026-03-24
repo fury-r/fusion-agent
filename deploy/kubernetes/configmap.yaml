@@ -63,6 +63,9 @@ data:
         enabled: false
         webhookUrl: "https://hooks.slack.com/services/REPLACE/WITH/REAL"
         channel: "#devops-alerts"
+      teams:
+        enabled: false
+        webhookUrl: "https://outlook.office.com/webhook/REPLACE/WITH/REAL"
       webhook:
         enabled: false
         url: "https://your-webhook.example.com/cluster-monitor"
