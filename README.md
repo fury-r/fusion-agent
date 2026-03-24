@@ -11,21 +11,21 @@ Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming respons
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| 🤖 Vibe Coder | AI pair-programmer that reads your project context, generates, and refactors code |
-| ⚡ Vibe Coder — Autonomous Mode | Give it a requirements file and rules; it codes end-to-end until done, with loop-detection and human-in-the-loop (HIL) escalation |
-| 🔍 Live Debugger | Attach to running services (log files, Docker, processes, HTTP) and get real-time AI analysis |
-| 🌐 Live Debugger + Web UI | Run `--ui` alongside the debugger to see a live dashboard with log feeds, AI analysis cards, and action buttons |
-| 🔁 Debugger — Retry & Notifications | Configurable AI retry with exponential back-off; notify via Slack / webhook when retries are exhausted |
-| 🔎 Debugger — Log Filtering | Restrict analysis to specific log patterns (regex) or log levels (ERROR, WARN, …) |
-| 🎫 Jira Integration | Create Jira tickets directly from Live Debugger analysis events, with per-integration guardrails |
-| ⚙ Git Integration | Apply AI-proposed code fixes to a git repository, push, and open a pull request, with per-integration guardrails |
-| 📦 Speckits | 7 prebuilt agent configurations: vibe-coder, debugger, code-review, doc-writer, test-writer, refactor, security-audit |
-| 🛡 Guardrails | Per-session rules the AI must follow (allowed paths, denied operations, style rules, custom rules) |
-| 💾 Sessions | Named, persistent sessions with full conversation history, file-change tracking, and rich debugger metadata |
-| 🌐 Web UI | Built-in web dashboard — session viewer, **interactive Vibe Coder chat**, **Autonomous Mode control panel**, and **Live Debugger detail view** |
-| 📚 Library API | Importable TypeScript module for programmatic use |
+| Feature                             | Description                                                                                                                                    |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🤖 Vibe Coder                       | AI pair-programmer that reads your project context, generates, and refactors code                                                              |
+| ⚡ Vibe Coder — Autonomous Mode     | Give it a requirements file and rules; it codes end-to-end until done, with loop-detection and human-in-the-loop (HIL) escalation              |
+| 🔍 Live Debugger                    | Attach to running services (log files, Docker, processes, HTTP) and get real-time AI analysis                                                  |
+| 🌐 Live Debugger + Web UI           | Run `--ui` alongside the debugger to see a live dashboard with log feeds, AI analysis cards, and action buttons                                |
+| 🔁 Debugger — Retry & Notifications | Configurable AI retry with exponential back-off; notify via Slack / webhook when retries are exhausted                                         |
+| 🔎 Debugger — Log Filtering         | Restrict analysis to specific log patterns (regex) or log levels (ERROR, WARN, …)                                                              |
+| 🎫 Jira Integration                 | Create Jira tickets directly from Live Debugger analysis events, with per-integration guardrails                                               |
+| ⚙ Git Integration                   | Apply AI-proposed code fixes to a git repository, push, and open a pull request, with per-integration guardrails                               |
+| 📦 Speckits                         | 7 prebuilt agent configurations: vibe-coder, debugger, code-review, doc-writer, test-writer, refactor, security-audit                          |
+| 🛡 Guardrails                       | Per-session rules the AI must follow (allowed paths, denied operations, style rules, custom rules)                                             |
+| 💾 Sessions                         | Named, persistent sessions with full conversation history, file-change tracking, and rich debugger metadata                                    |
+| 🌐 Web UI                           | Built-in web dashboard — session viewer, **interactive Vibe Coder chat**, **Autonomous Mode control panel**, and **Live Debugger detail view** |
+| 📚 Library API                      | Importable TypeScript module for programmatic use                                                                                              |
 
 ---
 
@@ -291,12 +291,12 @@ Options:
 
 Inside a chat session:
 
-| Command | Action |
-|---------|--------|
-| `/exit` or `/quit` | End session and save |
-| `/save` | Save current session |
-| `/turns` | Show conversation history |
-| `/context` | Inject current project context |
+| Command            | Action                         |
+| ------------------ | ------------------------------ |
+| `/exit` or `/quit` | End session and save           |
+| `/save`            | Save current session           |
+| `/turns`           | Show conversation history      |
+| `/context`         | Inject current project context |
 
 ### `ai-agent speckit`
 
@@ -397,15 +397,15 @@ ai-agent config --port 3000         # Set default Web UI port
 
 Speckits are pre-configured agent personas. Use `--speckit <name>` with `chat`.
 
-| Name | Description |
-|------|-------------|
-| `vibe-coder` | Full-stack AI pair programmer (default) |
-| `debugger` | Root-cause analysis and targeted code fixes |
-| `code-review` | OWASP/quality review with severity grading |
-| `doc-writer` | JSDoc, README, OpenAPI docs generation |
-| `test-writer` | Unit and integration test generation |
-| `refactor` | Structural refactoring without changing behavior |
-| `security-audit` | OWASP Top 10 security vulnerability scan |
+| Name             | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| `vibe-coder`     | Full-stack AI pair programmer (default)          |
+| `debugger`       | Root-cause analysis and targeted code fixes      |
+| `code-review`    | OWASP/quality review with severity grading       |
+| `doc-writer`     | JSDoc, README, OpenAPI docs generation           |
+| `test-writer`    | Unit and integration test generation             |
+| `refactor`       | Structural refactoring without changing behavior |
+| `security-audit` | OWASP Top 10 security vulnerability scan         |
 
 ```bash
 ai-agent chat --speckit security-audit
@@ -434,35 +434,35 @@ ai-agent chat \
 ### Guardrail types (programmatic API)
 
 ```typescript
-import { createGuardrail } from 'fusion-agent';
+import { createGuardrail } from "fusion-agent";
 
-createGuardrail('allow-paths', ['./src', './tests'])
-createGuardrail('deny-paths', ['./node_modules', './.env'])
-createGuardrail('deny-operations', ['delete', 'overwrite'])
-createGuardrail('max-tokens', 2000)
-createGuardrail('style', 'Use functional programming patterns')
-createGuardrail('custom', 'Always add JSDoc to exported functions')
+createGuardrail("allow-paths", ["./src", "./tests"]);
+createGuardrail("deny-paths", ["./node_modules", "./.env"]);
+createGuardrail("deny-operations", ["delete", "overwrite"]);
+createGuardrail("max-tokens", 2000);
+createGuardrail("style", "Use functional programming patterns");
+createGuardrail("custom", "Always add JSDoc to exported functions");
 ```
 
 ### Jira integration guardrails
 
 Jira-specific guardrails are passed in `jiraConfig.guardrails` and operate on ticket content — they never reach the AI. Supported formats:
 
-| Rule | Example | Effect |
-|------|---------|--------|
-| `deny-keyword:<word>` | `deny-keyword:secret` | Blocks tickets whose summary or description contains the word |
-| `require-label:<label>` | `require-label:live-debugger` | Ticket creation fails unless this label is present |
-| `max-summary-length:<n>` | `max-summary-length:100` | Ticket creation fails if summary exceeds N characters |
+| Rule                     | Example                       | Effect                                                        |
+| ------------------------ | ----------------------------- | ------------------------------------------------------------- |
+| `deny-keyword:<word>`    | `deny-keyword:secret`         | Blocks tickets whose summary or description contains the word |
+| `require-label:<label>`  | `require-label:live-debugger` | Ticket creation fails unless this label is present            |
+| `max-summary-length:<n>` | `max-summary-length:100`      | Ticket creation fails if summary exceeds N characters         |
 
 ### Git integration guardrails
 
 Git-specific guardrails are passed in `gitConfig.guardrails` and operate on the set of files being committed — the AI never directly touches the repo. Supported formats:
 
-| Rule | Example | Effect |
-|------|---------|--------|
-| `allow-path:<prefix>` | `allow-path:src/` | Only files under this prefix may be modified |
-| `deny-path:<prefix>` | `deny-path:secrets/` | Files under this prefix are blocked from modification |
-| `max-files:<n>` | `max-files:5` | Commit is rejected if it touches more than N files |
+| Rule                  | Example              | Effect                                                |
+| --------------------- | -------------------- | ----------------------------------------------------- |
+| `allow-path:<prefix>` | `allow-path:src/`    | Only files under this prefix may be modified          |
+| `deny-path:<prefix>`  | `deny-path:secrets/` | Files under this prefix are blocked from modification |
+| `max-files:<n>`       | `max-files:5`        | Commit is rejected if it touches more than N files    |
 
 ---
 
@@ -475,9 +475,7 @@ Create `.fusion-agent.json` in your project root:
   "provider": "openai",
   "model": "gpt-4o",
   "port": 3000,
-  "guardrails": [
-    { "type": "custom", "value": "Always use TypeScript" }
-  ]
+  "guardrails": [{ "type": "custom", "value": "Always use TypeScript" }]
 }
 ```
 
@@ -518,17 +516,17 @@ When you click on a debugger session (one with `speckit: 'debugger'`), you see a
 
 Each batch of matched log lines that was sent to the AI produces one card:
 
-| Card element | Description |
-|---|---|
+| Card element                 | Description                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------- |
 | **Analysis #N** + timestamps | Sequential number, prompt-sent time, response-received time, and duration in ms |
-| **Prompt sent** (collapsed) | Click to expand and see the exact prompt that was sent to the AI |
-| **AI response** | Full analysis with code-block rendering (same as Vibe Coder) |
-| 🔔 **Notified** badge | Shown if a Slack/webhook notification was dispatched for this event |
-| 🔧 **Fix applied** badge | Shown if a git fix was committed for this analysis |
-| **Jira key chip** | e.g. `OPS-123` — shown after a ticket is created |
-| **Git fix chip** | PR URL or commit SHA — shown after a git fix is applied |
-| **🎫 Create Jira Ticket** | Opens the Jira modal to file a ticket from this analysis |
-| **⚙ Apply Git Fix** | Opens the Git modal to commit AI-proposed code changes |
+| **Prompt sent** (collapsed)  | Click to expand and see the exact prompt that was sent to the AI                |
+| **AI response**              | Full analysis with code-block rendering (same as Vibe Coder)                    |
+| 🔔 **Notified** badge        | Shown if a Slack/webhook notification was dispatched for this event             |
+| 🔧 **Fix applied** badge     | Shown if a git fix was committed for this analysis                              |
+| **Jira key chip**            | e.g. `OPS-123` — shown after a ticket is created                                |
+| **Git fix chip**             | PR URL or commit SHA — shown after a git fix is applied                         |
+| **🎫 Create Jira Ticket**    | Opens the Jira modal to file a ticket from this analysis                        |
+| **⚙ Apply Git Fix**          | Opens the Git modal to commit AI-proposed code changes                          |
 
 #### Info Panel (right panel)
 
@@ -542,33 +540,33 @@ Click **Subscribe Live** to join the real-time Socket.IO room for this debugger 
 
 Fill in your Jira credentials once per session (not stored permanently):
 
-| Field | Description |
-|---|---|
-| Jira Base URL | e.g. `https://yourorg.atlassian.net` |
-| Email | Your Atlassian account email |
-| API Token | Generated at [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens) |
-| Project Key | e.g. `OPS`, `INFRA` |
-| Issue Type | Default: `Bug` |
-| Summary | Pre-populated from the AI analysis; editable |
-| Priority | Highest / High / Medium / Low / Lowest |
-| Labels | Comma-separated labels |
-| Guardrails | One rule per line (e.g. `deny-keyword:classified`) |
+| Field         | Description                                                                                  |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| Jira Base URL | e.g. `https://yourorg.atlassian.net`                                                         |
+| Email         | Your Atlassian account email                                                                 |
+| API Token     | Generated at [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens) |
+| Project Key   | e.g. `OPS`, `INFRA`                                                                          |
+| Issue Type    | Default: `Bug`                                                                               |
+| Summary       | Pre-populated from the AI analysis; editable                                                 |
+| Priority      | Highest / High / Medium / Low / Lowest                                                       |
+| Labels        | Comma-separated labels                                                                       |
+| Guardrails    | One rule per line (e.g. `deny-keyword:classified`)                                           |
 
 Click **Create Ticket** — the ticket is created via `POST /api/debugger/:sessionId/jira` and the Jira key (e.g. `OPS-123`) immediately appears on the analysis card.
 
 #### ⚙ Git Modal
 
-| Field | Description |
-|---|---|
-| Repo Path | Absolute path to a local git repository (must already exist) |
-| Token | GitHub / GitLab personal access token for HTTPS pushes (optional if SSH) |
-| Remote URL | e.g. `https://github.com/org/repo` — overrides the existing `origin` remote |
-| Branch | Target branch (default: `fusion-agent/auto-fix`) — created if it does not exist |
-| GitHub API URL | e.g. `https://api.github.com` — required to open a pull request |
-| Commit Message | Defaults to `fix: apply AI-suggested fix from live debugger` |
-| PR Title | If set and GitHub API URL is provided, a pull request is opened after push |
-| Base Branch | PR base (default: `main`) |
-| Guardrails | One rule per line (e.g. `allow-path:src/`, `deny-path:secrets/`) |
+| Field          | Description                                                                     |
+| -------------- | ------------------------------------------------------------------------------- |
+| Repo Path      | Absolute path to a local git repository (must already exist)                    |
+| Token          | GitHub / GitLab personal access token for HTTPS pushes (optional if SSH)        |
+| Remote URL     | e.g. `https://github.com/org/repo` — overrides the existing `origin` remote     |
+| Branch         | Target branch (default: `fusion-agent/auto-fix`) — created if it does not exist |
+| GitHub API URL | e.g. `https://api.github.com` — required to open a pull request                 |
+| Commit Message | Defaults to `fix: apply AI-suggested fix from live debugger`                    |
+| PR Title       | If set and GitHub API URL is provided, a pull request is opened after push      |
+| Base Branch    | PR base (default: `main`)                                                       |
+| Guardrails     | One rule per line (e.g. `allow-path:src/`, `deny-path:secrets/`)                |
 
 Click **Apply Fix** — the AI-proposed code blocks are extracted from the analysis, written to disk, committed, and optionally pushed + PRed via `POST /api/debugger/:sessionId/git-fix`. The resulting PR URL or commit SHA appears on the analysis card.
 
@@ -583,7 +581,7 @@ Interactive chat mode identical to the CLI — but in the browser:
 1. Enter a session name and (optionally) the path to your project directory on the server.
 2. Click **New Session** to connect.
 3. Type a prompt and press **Send** (or `Ctrl+Enter`).
-4. The AI response streams in real time. Any file blocks in the response (```` ```language:path/to/file ``` ````) are automatically written to disk.
+4. The AI response streams in real time. Any file blocks in the response (` ```language:path/to/file ``` `) are automatically written to disk.
 5. Changed files appear in the **Files Changed** panel on the right.
 6. Click **📁** to inject the current project directory structure as context.
 
@@ -591,13 +589,13 @@ Interactive chat mode identical to the CLI — but in the browser:
 
 Give the agent a requirements file and let it code unattended:
 
-| Setting | Description |
-|---------|-------------|
-| **Requirements file path** | Server-side path to a `.md` or `.txt` requirements file |
-| **Paste requirements** | Alternatively, paste requirements text directly |
-| **Rules** | Add one or more constraints the agent must follow (e.g. "Use TypeScript strict mode") |
-| **Time limit** | Stop automatically after N seconds (0 = no limit) |
-| **Max steps** | Maximum iteration count before forcing a HIL check (default: 50) |
+| Setting                    | Description                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------- |
+| **Requirements file path** | Server-side path to a `.md` or `.txt` requirements file                               |
+| **Paste requirements**     | Alternatively, paste requirements text directly                                       |
+| **Rules**                  | Add one or more constraints the agent must follow (e.g. "Use TypeScript strict mode") |
+| **Time limit**             | Stop automatically after N seconds (0 = no limit)                                     |
+| **Max steps**              | Maximum iteration count before forcing a HIL check (default: 50)                      |
 
 Click **▶ Run Autonomous** to start. The agent will:
 
@@ -631,34 +629,34 @@ All pages use Socket.IO — streaming tokens, file-change notifications, live lo
 ## Library / Programmatic API
 
 ```typescript
-import { AgentCLI, createGuardrail } from 'fusion-agent';
+import { AgentCLI, createGuardrail } from "fusion-agent";
 
 // Create an agent instance
 const agent = new AgentCLI({
-  provider: 'openai',   // or 'anthropic', 'gemini'
-  model: 'gpt-4o',
+  provider: "openai", // or 'anthropic', 'gemini'
+  model: "gpt-4o",
   apiKey: process.env.OPENAI_API_KEY,
 });
 
 // One-shot chat
-const response = await agent.chat('Write a hello world in Rust');
+const response = await agent.chat("Write a hello world in Rust");
 console.log(response);
 
 // Session-based chat with guardrails
 const session = agent.createSession({
-  name: 'my-project',
-  speckit: 'vibe-coder',
+  name: "my-project",
+  speckit: "vibe-coder",
   guardrails: [
-    createGuardrail('allow-paths', ['./src']),
-    createGuardrail('custom', 'Always add TypeScript types'),
+    createGuardrail("allow-paths", ["./src"]),
+    createGuardrail("custom", "Always add TypeScript types"),
   ],
 });
 
-const turn = await session.chat('Add a user authentication middleware');
+const turn = await session.chat("Add a user authentication middleware");
 console.log(turn.assistantMessage);
 
 // Apply a file change
-session.applyFileChange('./src/middleware/auth.ts', '// new content...');
+session.applyFileChange("./src/middleware/auth.ts", "// new content...");
 
 // Revert the change
 session.revertTurnChanges(turn.id);
@@ -670,29 +668,32 @@ agent.sessionManager.persistSession(session);
 ### Live Debugger API
 
 ```typescript
-import { AgentCLI, LiveDebugger } from 'fusion-agent';
+import { AgentCLI, LiveDebugger } from "fusion-agent";
 
-const agent = new AgentCLI({ provider: 'openai' });
-const session = agent.createSession({ name: 'live-debugger-prod', speckit: 'debugger' });
+const agent = new AgentCLI({ provider: "openai" });
+const session = agent.createSession({
+  name: "live-debugger-prod",
+  speckit: "debugger",
+});
 
 const debugger_ = new LiveDebugger({
   session,
   batchSize: 20,
 
   // Resilience
-  retryCount: 3,           // retry up to 3 times (default)
-  retryDelayMs: 1000,      // 1 s base delay, doubles each attempt
+  retryCount: 3, // retry up to 3 times (default)
+  retryDelayMs: 1000, // 1 s base delay, doubles each attempt
 
   // Log filtering — omit both to accept all lines (default behaviour)
-  logLevels: ['ERROR', 'WARN', 'FATAL'],   // only these levels
-  logPatterns: ['OOM', 'killed'],           // OR these patterns
+  logLevels: ["ERROR", "WARN", "FATAL"], // only these levels
+  logPatterns: ["OOM", "killed"], // OR these patterns
 
   // Token budget: oldest lines are trimmed first to fit.
   // When omitted the limit is auto-detected from 429 errors.
   logTokenLimit: 25000,
   // Notification when all retries are exhausted
   notifications: {
-    slack: { enabled: true, webhookUrl: 'https://hooks.slack.com/...' },
+    slack: { enabled: true, webhookUrl: "https://hooks.slack.com/..." },
   },
 
   // Optional: Socket.IO instance for real-time Web UI pushes
@@ -700,54 +701,64 @@ const debugger_ = new LiveDebugger({
 
   onLog: (line) => console.log(line),
   onAnalysis: (analysis, meta) => {
-    console.log('AI:', analysis);
+    console.log("AI:", analysis);
     // meta: { matchedLogLines, promptSentAt, responseReceivedAt,
     //         notificationSent, fixApplied, jiraKey?, gitFixUrl? }
-    console.log('Prompt sent at:', meta.promptSentAt);
-    console.log('Response received at:', meta.responseReceivedAt);
+    console.log("Prompt sent at:", meta.promptSentAt);
+    console.log("Response received at:", meta.responseReceivedAt);
   },
 });
 
 // Listen for errors without crashing
-debugger_.on('error', (err) => console.error('Debugger error:', err.message));
+debugger_.on("error", (err) => console.error("Debugger error:", err.message));
 
 // Watch a log file
-debugger_.watchLogFile('/var/log/app.log');
+debugger_.watchLogFile("/var/log/app.log");
 
 // Or connect to a service
-debugger_.connectToService({ type: 'docker', container: 'my-app' });
-debugger_.connectToService({ type: 'process', command: 'node', args: ['server.js'] });
-debugger_.connectToService({ type: 'http-poll', url: 'http://localhost:8080/health' });
+debugger_.connectToService({ type: "docker", container: "my-app" });
+debugger_.connectToService({
+  type: "process",
+  command: "node",
+  args: ["server.js"],
+});
+debugger_.connectToService({
+  type: "http-poll",
+  url: "http://localhost:8080/health",
+});
 
 // Stop
-process.on('SIGINT', () => debugger_.stop());
+process.on("SIGINT", () => debugger_.stop());
 ```
 
 ### Live Debugger + Web UI (programmatic)
 
 ```typescript
-import { AgentCLI, LiveDebugger, createWebServer } from 'fusion-agent';
+import { AgentCLI, LiveDebugger, createWebServer } from "fusion-agent";
 
-const agent = new AgentCLI({ provider: 'openai' });
-const session = agent.createSession({ name: 'live-debugger-prod', speckit: 'debugger' });
+const agent = new AgentCLI({ provider: "openai" });
+const session = agent.createSession({
+  name: "live-debugger-prod",
+  speckit: "debugger",
+});
 
 // Start the web server first so we can pass its Socket.IO instance
 const server = createWebServer({
   port: 3000,
   sessionManager: agent.sessionManager,
   apiKey: process.env.OPENAI_API_KEY,
-  provider: 'openai',
+  provider: "openai",
 });
 await server.start();
 
 const debugger_ = new LiveDebugger({
   session,
-  io: server.io,   // ← wire up for real-time Web UI pushes
+  io: server.io, // ← wire up for real-time Web UI pushes
   onAnalysis: (analysis) => agent.sessionManager.persistSession(session),
 });
 
-debugger_.on('error', (err) => console.error(err.message));
-debugger_.watchLogFile('/var/log/app.log');
+debugger_.on("error", (err) => console.error(err.message));
+debugger_.watchLogFile("/var/log/app.log");
 ```
 
 The debugger session appears immediately in the Web UI Sessions tab (prefixed with 🔍). Open the session detail page and click **Subscribe Live** to watch logs and AI analysis cards update in real time.
@@ -755,136 +766,144 @@ The debugger session appears immediately in the Web UI Sessions tab (prefixed wi
 ### Jira Integration API
 
 ```typescript
-import { JiraClient } from 'fusion-agent';
+import { JiraClient } from "fusion-agent";
 
 const jira = new JiraClient({
-  baseUrl: 'https://yourorg.atlassian.net',
-  email: 'ops@yourorg.com',
+  baseUrl: "https://yourorg.atlassian.net",
+  email: "ops@yourorg.com",
   apiToken: process.env.JIRA_TOKEN!,
-  projectKey: 'OPS',
-  issueType: 'Bug',            // default
-  labels: ['live-debugger'],   // applied to every issue
+  projectKey: "OPS",
+  issueType: "Bug", // default
+  labels: ["live-debugger"], // applied to every issue
   guardrails: [
-    'deny-keyword:classified',   // block tickets containing "classified"
-    'require-label:live-debugger',
-    'max-summary-length:200',
+    "deny-keyword:classified", // block tickets containing "classified"
+    "require-label:live-debugger",
+    "max-summary-length:200",
   ],
 });
 
 // Create an issue from a debugger analysis
 const result = await jira.createIssue({
-  summary: '[Live Debugger] OOM killer triggered on api-server',
-  description: '**Matched log lines:**\n...\n\n**AI Analysis:**\n...',
-  priority: 'High',
-  labels: ['production'],
+  summary: "[Live Debugger] OOM killer triggered on api-server",
+  description: "**Matched log lines:**\n...\n\n**AI Analysis:**\n...",
+  priority: "High",
+  labels: ["production"],
 });
-console.log(`Created: ${result.key} — ${result.url}`);  // e.g. OPS-42
+console.log(`Created: ${result.key} — ${result.url}`); // e.g. OPS-42
 
 // Add a follow-up comment
-await jira.addComment(result.key, 'Fix applied via git — see PR #142');
+await jira.addComment(result.key, "Fix applied via git — see PR #142");
 ```
 
 #### Jira guardrail reference
 
-| Rule | Example | Effect |
-|------|---------|--------|
-| `deny-keyword:<word>` | `deny-keyword:secret` | Blocks ticket creation if summary or description contains the word |
-| `require-label:<label>` | `require-label:live-debugger` | Fails if the label is not in the issue's label set |
-| `max-summary-length:<n>` | `max-summary-length:200` | Fails if summary exceeds N characters |
+| Rule                     | Example                       | Effect                                                             |
+| ------------------------ | ----------------------------- | ------------------------------------------------------------------ |
+| `deny-keyword:<word>`    | `deny-keyword:secret`         | Blocks ticket creation if summary or description contains the word |
+| `require-label:<label>`  | `require-label:live-debugger` | Fails if the label is not in the issue's label set                 |
+| `max-summary-length:<n>` | `max-summary-length:200`      | Fails if summary exceeds N characters                              |
 
 ### Git Integration API
 
 ```typescript
-import { GitPatchApplier } from 'fusion-agent';
+import { GitPatchApplier } from "fusion-agent";
 
 const patcher = new GitPatchApplier({
-  repoPath: '/home/ubuntu/my-service',   // must be an existing git repo
-  token: process.env.GITHUB_TOKEN,       // for HTTPS push auth
-  remoteUrl: 'https://github.com/org/my-service',
-  branch: 'fusion-agent/fix-oom-killer', // created if it does not exist
-  apiBaseUrl: 'https://api.github.com',  // enables PR creation
-  authorName: 'fusion-agent[bot]',
-  authorEmail: 'fusion-agent@noreply',
+  repoPath: "/home/ubuntu/my-service", // must be an existing git repo
+  token: process.env.GITHUB_TOKEN, // for HTTPS push auth
+  remoteUrl: "https://github.com/org/my-service",
+  branch: "fusion-agent/fix-oom-killer", // created if it does not exist
+  apiBaseUrl: "https://api.github.com", // enables PR creation
+  authorName: "fusion-agent[bot]",
+  authorEmail: "fusion-agent@noreply",
   guardrails: [
-    'allow-path:src/',          // only modify files under src/
-    'deny-path:src/secrets/',   // never touch secret files
-    'max-files:10',             // at most 10 files per commit
+    "allow-path:src/", // only modify files under src/
+    "deny-path:src/secrets/", // never touch secret files
+    "max-files:10", // at most 10 files per commit
   ],
 });
 
 // Apply AI-proposed code blocks and open a pull request
 const result = await patcher.applyAndCommit({
   files: {
-    'src/server.ts': '// patched content from AI analysis\n...',
-    'src/config.ts': '// updated memory limits\n...',
+    "src/server.ts": "// patched content from AI analysis\n...",
+    "src/config.ts": "// updated memory limits\n...",
   },
-  commitMessage: 'fix: raise memory limit to prevent OOM killer',
-  pullRequestTitle: 'fix: raise memory limit (AI-suggested fix)',
-  pullRequestBody: 'Auto-generated by fusion-agent Live Debugger.\n\nAnalysis: ...',
-  baseBranch: 'main',
+  commitMessage: "fix: raise memory limit to prevent OOM killer",
+  pullRequestTitle: "fix: raise memory limit (AI-suggested fix)",
+  pullRequestBody:
+    "Auto-generated by fusion-agent Live Debugger.\n\nAnalysis: ...",
+  baseBranch: "main",
 });
 
-console.log('Branch:', result.branch);
-console.log('Commit:', result.commitSha);
-console.log('PR:', result.pullRequestUrl);  // https://github.com/org/repo/pull/43
+console.log("Branch:", result.branch);
+console.log("Commit:", result.commitSha);
+console.log("PR:", result.pullRequestUrl); // https://github.com/org/repo/pull/43
 ```
 
 #### Git guardrail reference
 
-| Rule | Example | Effect |
-|------|---------|--------|
-| `allow-path:<prefix>` | `allow-path:src/` | Only files whose relative path starts with this prefix may be modified |
-| `deny-path:<prefix>` | `deny-path:secrets/` | Files under this prefix are always blocked |
-| `max-files:<n>` | `max-files:10` | Commit is rejected when it touches more than N files |
+| Rule                  | Example              | Effect                                                                 |
+| --------------------- | -------------------- | ---------------------------------------------------------------------- |
+| `allow-path:<prefix>` | `allow-path:src/`    | Only files whose relative path starts with this prefix may be modified |
+| `deny-path:<prefix>`  | `deny-path:secrets/` | Files under this prefix are always blocked                             |
+| `max-files:<n>`       | `max-files:10`       | Commit is rejected when it touches more than N files                   |
 
 ### Autonomous Vibe Coder API
 
 ```typescript
-import { AgentCLI, AutonomousVibeAgent } from 'fusion-agent';
+import { AgentCLI, AutonomousVibeAgent } from "fusion-agent";
 
-const agent = new AgentCLI({ provider: 'openai' });
+const agent = new AgentCLI({ provider: "openai" });
 const session = agent.createSession({
-  name: 'auto-build',
-  speckit: 'vibe-coder',
+  name: "auto-build",
+  speckit: "vibe-coder",
   projectDir: process.cwd(),
 });
 
 const autoAgent = new AutonomousVibeAgent(session, {
   // Supply one of:
-  requirementsFile: './requirements.md',   // path on disk
+  requirementsFile: "./requirements.md", // path on disk
   // requirementsContent: '## Build a REST API\n...',   // or inline text
 
   rules: [
-    { id: 'ts', description: 'All files must be TypeScript' },
-    { id: 'tests', description: 'Every module must have a matching .test.ts file' },
+    { id: "ts", description: "All files must be TypeScript" },
+    {
+      id: "tests",
+      description: "Every module must have a matching .test.ts file",
+    },
   ],
 
-  timeLimitSeconds: 600,   // stop after 10 minutes (0 = no limit)
-  maxSteps: 50,            // stop after 50 steps
+  timeLimitSeconds: 600, // stop after 10 minutes (0 = no limit)
+  maxSteps: 50, // stop after 50 steps
 
   // Loop / stuck detection
-  loopWindowSize: 4,              // compare against last 4 responses
-  loopSimilarityThreshold: 0.85,  // 85 % word-level Jaccard similarity = loop
-  stuckThreshold: 3,              // 3 consecutive steps with no file changes = stuck
+  loopWindowSize: 4, // compare against last 4 responses
+  loopSimilarityThreshold: 0.85, // 85 % word-level Jaccard similarity = loop
+  stuckThreshold: 3, // 3 consecutive steps with no file changes = stuck
 });
 
-autoAgent.on('status', (s) => console.log('Status:', s));
-autoAgent.on('step', (step) => console.log(`Step ${step.stepNumber} — changed:`, step.filesChanged));
-autoAgent.on('file-changed', (path) => console.log('Written:', path));
-autoAgent.on('chunk', (chunk) => process.stdout.write(chunk));
+autoAgent.on("status", (s) => console.log("Status:", s));
+autoAgent.on("step", (step) =>
+  console.log(`Step ${step.stepNumber} — changed:`, step.filesChanged),
+);
+autoAgent.on("file-changed", (path) => console.log("Written:", path));
+autoAgent.on("chunk", (chunk) => process.stdout.write(chunk));
 
 // Handle human-in-the-loop requests
-autoAgent.on('hil-request', (req) => {
-  console.log('\n⚠ Agent is confused:', req.confusionSummary);
-  autoAgent.receiveHILResponse('Focus only on the authentication module for now.');
+autoAgent.on("hil-request", (req) => {
+  console.log("\n⚠ Agent is confused:", req.confusionSummary);
+  autoAgent.receiveHILResponse(
+    "Focus only on the authentication module for now.",
+  );
 });
 
-autoAgent.on('complete', (steps) => {
+autoAgent.on("complete", (steps) => {
   console.log(`Done! ${steps.length} steps completed.`);
   agent.sessionManager.persistSession(session);
 });
 
-autoAgent.on('error', (err) => console.error('Agent error:', err.message));
+autoAgent.on("error", (err) => console.error("Agent error:", err.message));
 
 await autoAgent.run();
 ```
@@ -892,16 +911,16 @@ await autoAgent.run();
 ### Web Server API
 
 ```typescript
-import { AgentCLI, createWebServer } from 'fusion-agent';
+import { AgentCLI, createWebServer } from "fusion-agent";
 
-const agent = new AgentCLI({ provider: 'openai' });
+const agent = new AgentCLI({ provider: "openai" });
 const server = createWebServer({
   port: 3000,
   sessionManager: agent.sessionManager,
   apiKey: process.env.OPENAI_API_KEY,
-  provider: 'openai',
-  model: 'gpt-4o',
-  projectDir: process.cwd(),  // default project dir for new vibe-coder sessions
+  provider: "openai",
+  model: "gpt-4o",
+  projectDir: process.cwd(), // default project dir for new vibe-coder sessions
 });
 await server.start();
 // server.io is a Socket.IO Server instance — pass to LiveDebugger for real-time pushes
@@ -913,16 +932,16 @@ await server.start();
 
 When the web server is running these endpoints are available in addition to the UI:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/sessions` | List all sessions |
-| `GET` | `/api/sessions/:id` | Get full session detail (including turns + debuggerMeta) |
-| `DELETE` | `/api/sessions/:id` | Delete a session |
-| `GET` | `/api/sessions/:id/export` | Download session as JSON |
-| `POST` | `/api/debugger/:sessionId/jira` | Create a Jira ticket from a debugger turn |
-| `POST` | `/api/debugger/:sessionId/git-fix` | Apply AI code fixes from a debugger turn to a git repo |
-| `GET` | `/api/settings` | Get current settings |
-| `POST` | `/api/settings` | Update settings |
+| Method   | Path                               | Description                                              |
+| -------- | ---------------------------------- | -------------------------------------------------------- |
+| `GET`    | `/api/sessions`                    | List all sessions                                        |
+| `GET`    | `/api/sessions/:id`                | Get full session detail (including turns + debuggerMeta) |
+| `DELETE` | `/api/sessions/:id`                | Delete a session                                         |
+| `GET`    | `/api/sessions/:id/export`         | Download session as JSON                                 |
+| `POST`   | `/api/debugger/:sessionId/jira`    | Create a Jira ticket from a debugger turn                |
+| `POST`   | `/api/debugger/:sessionId/git-fix` | Apply AI code fixes from a debugger turn to a git repo   |
+| `GET`    | `/api/settings`                    | Get current settings                                     |
+| `POST`   | `/api/settings`                    | Update settings                                          |
 
 ### `POST /api/debugger/:sessionId/jira`
 
@@ -945,8 +964,13 @@ When the web server is running these endpoints are available in addition to the 
 ```
 
 Response:
+
 ```json
-{ "id": "10042", "key": "OPS-42", "url": "https://yourorg.atlassian.net/browse/OPS-42" }
+{
+  "id": "10042",
+  "key": "OPS-42",
+  "url": "https://yourorg.atlassian.net/browse/OPS-42"
+}
 ```
 
 ### `POST /api/debugger/:sessionId/git-fix`
@@ -970,6 +994,7 @@ Response:
 ```
 
 Response:
+
 ```json
 {
   "branch": "fusion-agent/fix-oom",
@@ -982,11 +1007,11 @@ Response:
 
 ## Providers & Models
 
-| Provider | Env Variable | Recommended Models |
-|----------|-------------|-------------------|
-| OpenAI | `OPENAI_API_KEY` | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo` |
-| Anthropic | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022` |
-| Google Gemini | `GEMINI_API_KEY` | `gemini-1.5-pro`, `gemini-1.5-flash` |
+| Provider      | Env Variable        | Recommended Models                                        |
+| ------------- | ------------------- | --------------------------------------------------------- |
+| OpenAI        | `OPENAI_API_KEY`    | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`                    |
+| Anthropic     | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022` |
+| Google Gemini | `GEMINI_API_KEY`    | `gemini-1.5-pro`, `gemini-1.5-flash`                      |
 
 ---
 
@@ -994,23 +1019,23 @@ Response:
 
 The live debugger is designed to never crash your process:
 
-| Scenario | Behaviour |
-|----------|-----------|
-| AI provider call fails | Retried with exponential back-off (configurable `retryCount` / `retryDelayMs`) |
-| `429 Request too large` | Token limit extracted from the error message, prompt is automatically re-truncated, and the request is retried with the reduced payload. Set `--log-token-limit` to pre-configure the limit before the first error |
-| All retries exhausted | `'error'` event emitted; notification sent if `notifications` is configured |
-| Log file not found | `'error'` event emitted; no exception thrown |
-| Log file I/O error | `'error'` event emitted |
-| Spawned process fails to start | `'error'` event emitted on the connector; forwarded as `'error'` on the debugger |
-| Child process `'exit'` after `'error'` | Deduplicated — only one event fires per lifecycle |
-| Log listener throws | Caught internally; logged; does not propagate |
-| Web UI not connected | Socket.IO `io.to(room).emit(...)` is a no-op — no crash |
+| Scenario                               | Behaviour                                                                                                                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| AI provider call fails                 | Retried with exponential back-off (configurable `retryCount` / `retryDelayMs`)                                                                                                                                     |
+| `429 Request too large`                | Token limit extracted from the error message, prompt is automatically re-truncated, and the request is retried with the reduced payload. Set `--log-token-limit` to pre-configure the limit before the first error |
+| All retries exhausted                  | `'error'` event emitted; notification sent if `notifications` is configured                                                                                                                                        |
+| Log file not found                     | `'error'` event emitted; no exception thrown                                                                                                                                                                       |
+| Log file I/O error                     | `'error'` event emitted                                                                                                                                                                                            |
+| Spawned process fails to start         | `'error'` event emitted on the connector; forwarded as `'error'` on the debugger                                                                                                                                   |
+| Child process `'exit'` after `'error'` | Deduplicated — only one event fires per lifecycle                                                                                                                                                                  |
+| Log listener throws                    | Caught internally; logged; does not propagate                                                                                                                                                                      |
+| Web UI not connected                   | Socket.IO `io.to(room).emit(...)` is a no-op — no crash                                                                                                                                                            |
 
 Always attach an `'error'` listener to prevent Node.js unhandled-error crashes:
 
 ```typescript
-debugger_.on('error', (err) => {
-  console.error('Debugger error:', err.message);
+debugger_.on("error", (err) => {
+  console.error("Debugger error:", err.message);
   // handle gracefully — the debugger keeps running
 });
 ```
@@ -1036,10 +1061,10 @@ A self-contained Docker Compose stack is provided under `deploy/live-debugger-du
 
 ### What it does
 
-| Container | Purpose |
-|-----------|---------|
+| Container                    | Purpose                                                                                                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `fusion-live-debugger-dummy` | Node.js dummy server that intentionally emits error events every 5 seconds (DB connection failures, missing-file errors, type errors, JSON parse errors) on port 8080 |
-| `fusion-agent-ui` | The Web UI — builds from the project root Dockerfile and serves on port 3000 |
+| `fusion-agent-ui`            | The Web UI — builds from the project root Dockerfile and serves on port 3000                                                                                          |
 
 The host live debugger writes session files to `~/.fusion-agent/sessions/`. The UI container bind-mounts that directory (`${HOME}/.fusion-agent:/root/.fusion-agent`) so sessions created by the CLI debugger are immediately visible in the browser.
 
@@ -1064,10 +1089,10 @@ Open `http://localhost:3000` to see the Web UI. The `live-debug` session appears
 
 ### Dummy server routes
 
-| Route | Description |
-|-------|-------------|
-| `GET /health` | Health check — returns `{ ok: true }` |
-| `GET /crash` | Triggers an intentional JSON parse exception |
+| Route           | Description                                                   |
+| --------------- | ------------------------------------------------------------- |
+| `GET /health`   | Health check — returns `{ ok: true }`                         |
+| `GET /crash`    | Triggers an intentional JSON parse exception                  |
 | `GET /db-check` | Attempts a TCP connection to a non-existent Postgres instance |
 
 ### Teams notifications
