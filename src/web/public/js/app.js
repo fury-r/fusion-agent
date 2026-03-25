@@ -456,9 +456,23 @@
     if (!panel) return;
     var chip = document.createElement("div");
     chip.className = "file-chip";
-    chip.textContent =
-      (stepNumber != null ? "[" + stepNumber + "] " : "") + filePath;
-    chip.title = filePath;
+    chip.title = "Click to copy path";
+    var label = (stepNumber != null ? "[" + stepNumber + "] " : "") + filePath;
+    chip.innerHTML =
+      '<span class="file-chip-path">' +
+      escHtml(label) +
+      "</span>" +
+      '<span class="file-chip-copy">⧉ copy</span>';
+    chip.addEventListener("click", function () {
+      navigator.clipboard
+        .writeText(filePath)
+        .then(function () {
+          showToast("Copied: " + filePath, "success");
+        })
+        .catch(function () {
+          showToast(filePath, "success");
+        });
+    });
     panel.appendChild(chip);
   }
 
@@ -581,6 +595,8 @@
     document.getElementById("auto-steps-list").innerHTML = "";
     document.getElementById("auto-current-output").textContent = "";
     document.getElementById("auto-files-panel").innerHTML = "";
+    document.getElementById("auto-open-dir-btn").style.display = "none";
+    autoStepData = [];
   }
 
   // ---- HIL modal ---------------------------------------------
@@ -674,16 +690,26 @@
     }
   });
 
+  // Store all step data for the current autonomous run
+  var autoStepData = [];
+
   socket.on("vibe:step-complete", function (data) {
     var step = data.step || {};
+    autoStepData.push(step);
     var list = document.getElementById("auto-steps-list");
-    var item = document.createElement("div");
-    item.className = "auto-step-item";
     var filesCount = (step.filesChanged || []).length;
     var summary =
       (step.response || "").slice(0, 80) +
       (step.response && step.response.length > 80 ? "…" : "");
-    item.innerHTML =
+
+    var item = document.createElement("div");
+    item.className = "auto-step-item";
+
+    // Header row (always visible)
+    var header = document.createElement("div");
+    header.className = "auto-step-header";
+    header.innerHTML =
+      '<span class="auto-step-toggle">▶</span>' +
       '<span class="step-number">#' +
       escHtml(String(step.stepNumber || "?")) +
       "</span>" +
@@ -697,6 +723,39 @@
           (filesCount !== 1 ? "s" : "") +
           "</span>"
         : "");
+
+    // Detail panel (shown on expand)
+    var detail = document.createElement("div");
+    detail.className = "auto-step-detail";
+
+    var filesHtml = "";
+    (step.filesChanged || []).forEach(function (fp) {
+      filesHtml +=
+        '<div class="file-chip" title="Click to copy path" onclick="(function(){navigator.clipboard&&navigator.clipboard.writeText(' +
+        JSON.stringify(fp) +
+        ');})();">' +
+        '<span class="file-chip-path">' +
+        escHtml(fp) +
+        "</span>" +
+        '<span class="file-chip-copy">⧉ copy</span></div>';
+    });
+
+    detail.innerHTML =
+      '<div class="auto-step-detail-output">' +
+      escHtml(step.response || "(no output)") +
+      "</div>" +
+      (filesHtml
+        ? '<div class="auto-step-detail-files">' + filesHtml + "</div>"
+        : "");
+
+    header.addEventListener("click", function () {
+      item.classList.toggle("expanded");
+      header.querySelector(".auto-step-toggle").textContent =
+        item.classList.contains("expanded") ? "▼" : "▶";
+    });
+
+    item.appendChild(header);
+    item.appendChild(detail);
     list.appendChild(item);
     list.scrollTop = list.scrollHeight;
     document.getElementById("auto-current-output").textContent = "";
@@ -721,6 +780,8 @@
       "success",
     );
     setVibeStatus("completed");
+    // Show the Open Folder button now that a run has finished
+    document.getElementById("auto-open-dir-btn").style.display = "";
   });
 
   socket.on("vibe:hil-request", function (data) {
@@ -806,6 +867,26 @@
           socket.emit("vibe:stop-autonomous", { sessionId: vibeSessionId });
       });
 
+    // Open project folder after autonomous run
+    document
+      .getElementById("auto-open-dir-btn")
+      .addEventListener("click", function () {
+        if (!vibeSessionId) return;
+        fetch("/api/vibe-coder/sessions/" + vibeSessionId + "/open-dir")
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            showToast("Opening: " + data.dir, "success");
+          })
+          .catch(function (err) {
+            showToast(
+              "Could not open folder: " + (err.message || err),
+              "error",
+            );
+          });
+      });
+
     // HIL modal submit
     document
       .getElementById("hil-submit-btn")
@@ -855,6 +936,150 @@
   initVibeUI();
 
   // ============================================================
+  // VIBE CODER DEMO
+  // ============================================================
+
+  var demoRunning = false;
+
+  var DEMO_STEPS = [
+    {
+      user: "Create a TypeScript utility that debounces a function call",
+      reply: [
+        "Sure! Here's a clean, typed `debounce` utility:\n\n",
+        "```typescript:src/utils/debounce.ts\n",
+        "/**\n * Delays invoking `fn` until `delay` ms have elapsed\n * since the last call.\n */\nexport function debounce<T extends (...args: unknown[]) => void>(\n  fn: T,\n  delay: number\n): (...args: Parameters<T>) => void {\n  let timer: ReturnType<typeof setTimeout> | undefined;\n  return function (...args: Parameters<T>) {\n    if (timer) clearTimeout(timer);\n    timer = setTimeout(() => fn(...args), delay);\n  };\n}\n",
+        "```\n\n",
+        "And a quick test:\n\n",
+        "```typescript:tests/debounce.test.ts\n",
+        "import { debounce } from '../src/utils/debounce';\n\nit('fires only once after rapid calls', async () => {\n  let count = 0;\n  const fn = debounce(() => count++, 50);\n  fn(); fn(); fn();\n  await new Promise(r => setTimeout(r, 80));\n  expect(count).toBe(1);\n});\n",
+        "```\n\n",
+        "The generic `T` constraint preserves the original function signature so callers stay fully type-safe. `REQUIREMENTS_COMPLETE`",
+      ],
+    },
+    {
+      user: "Now add a leading-edge option so it can fire immediately on the first call",
+      reply: [
+        "Good idea — here's the updated utility with `{ leading }` support:\n\n",
+        "```typescript:src/utils/debounce.ts\n",
+        "export interface DebounceOptions {\n  /** Fire immediately on the leading edge (default: false) */\n  leading?: boolean;\n}\n\nexport function debounce<T extends (...args: unknown[]) => void>(\n  fn: T,\n  delay: number,\n  options: DebounceOptions = {}\n): (...args: Parameters<T>) => void {\n  let timer: ReturnType<typeof setTimeout> | undefined;\n  let called = false;\n  return function (...args: Parameters<T>) {\n    if (options.leading && !called) {\n      fn(...args);\n      called = true;\n    }\n    if (timer) clearTimeout(timer);\n    timer = setTimeout(() => {\n      called = false;\n      if (!options.leading) fn(...args);\n    }, delay);\n  };\n}\n",
+        "```\n\n",
+        "Pass `{ leading: true }` to get immediate invocation on the first call in each quiet window. `REQUIREMENTS_COMPLETE`",
+      ],
+    },
+  ];
+
+  function sleep(ms) {
+    return new Promise(function (r) {
+      setTimeout(r, ms);
+    });
+  }
+
+  async function typeIntoInput(text, delayPerChar) {
+    var input = document.getElementById("vibe-input");
+    input.value = "";
+    input.focus();
+    for (var i = 0; i < text.length; i++) {
+      input.value += text[i];
+      await sleep(delayPerChar);
+    }
+  }
+
+  async function streamReply(parts) {
+    var bubble = appendAssistantBubble();
+    bubble.classList.add("streaming");
+    var accumulated = "";
+    for (var pi = 0; pi < parts.length; pi++) {
+      var part = parts[pi];
+      for (var ci = 0; ci < part.length; ci++) {
+        accumulated += part[ci];
+        bubble.innerHTML =
+          renderMessageContent(accumulated) +
+          '<span class="demo-cursor"></span>';
+        var msgs = document.getElementById("vibe-messages");
+        msgs.scrollTop = msgs.scrollHeight;
+        await sleep(part[ci] === "\n" ? 12 : 8);
+      }
+      await sleep(30);
+    }
+    bubble.innerHTML = renderMessageContent(accumulated);
+    bubble.classList.remove("streaming");
+
+    // Extract any file blocks and show in files panel
+    var files = [];
+    var re = /```[^\n]*:([^\n]+)\n([\s\S]*?)```/g;
+    var m;
+    while ((m = re.exec(accumulated)) !== null) {
+      files.push(m[1].trim());
+    }
+    if (files.length) {
+      var panel = document.getElementById("vibe-files-panel");
+      files.forEach(function (fp) {
+        var div = document.createElement("div");
+        div.className = "vibe-file-item vibe-file-new";
+        div.textContent = fp;
+        panel.appendChild(div);
+      });
+    }
+  }
+
+  async function runVibeDemo() {
+    if (demoRunning) return;
+    demoRunning = true;
+    var btn = document.getElementById("vibe-demo-btn");
+    btn.disabled = true;
+    btn.textContent = "⏳ Demo…";
+
+    // Switch to chat tab and reset
+    switchVibeTab("chat");
+    clearVibeChat();
+    document.getElementById("vibe-files-panel").innerHTML = "";
+    document.getElementById("vibe-session-info").innerHTML =
+      '<div class="info-row"><span class="info-key">Session</span>' +
+      '<span class="info-val">demo-session</span></div>' +
+      '<div class="info-row"><span class="info-key">Provider</span>' +
+      '<span class="info-val">openai</span></div>' +
+      '<div class="info-row"><span class="info-key">Model</span>' +
+      '<span class="info-val">gpt-4o</span></div>';
+    setVibeStatus("active");
+
+    for (var i = 0; i < DEMO_STEPS.length; i++) {
+      var step = DEMO_STEPS[i];
+      await sleep(400);
+
+      // Type user message
+      await typeIntoInput(step.user, 28);
+      await sleep(350);
+      appendUserMessage(step.user);
+      document.getElementById("vibe-input").value = "";
+
+      // Stream AI reply
+      await sleep(500);
+      await streamReply(step.reply);
+      await sleep(800);
+    }
+
+    setVibeStatus("idle");
+    btn.disabled = false;
+    btn.textContent = "▶ Demo";
+    demoRunning = false;
+  }
+
+  document
+    .getElementById("vibe-demo-btn")
+    .addEventListener("click", function () {
+      // Ensure vibe page mode is active
+      document.querySelector(".main-content").classList.add("vibe-mode");
+      vibePageActive = true;
+      showPage("vibe-coder");
+      document.querySelectorAll(".nav-item").forEach(function (l) {
+        l.classList.remove("active");
+      });
+      var vibeLink = document.querySelector('[data-page="vibe-coder"]');
+      if (vibeLink) vibeLink.classList.add("active");
+      runVibeDemo();
+    });
+
+  // ============================================================
   // LIVE DEBUGGER
   // ============================================================
 
@@ -880,6 +1105,7 @@
     subBtn.textContent = "Subscribe Live";
     subBtn.disabled = false;
     document.getElementById("dbg-live-dot").classList.add("hidden");
+    setDbgConnectStatus("idle");
 
     // Populate log feed
     var logFeed = document.getElementById("dbg-log-feed");
@@ -985,11 +1211,19 @@
         '" target="_blank" rel="noopener noreferrer" class="badge-git">🔗 Git Fix</a>';
     }
 
+    if (meta.copilotIssueUrl) {
+      footerBadges +=
+        '<a href="' +
+        escHtml(meta.copilotIssueUrl) +
+        '" target="_blank" rel="noopener noreferrer" class="badge-copilot">🤖 Copilot Issue</a>';
+    }
+
     var footerHtml =
       '<div class="analysis-footer">' +
       footerBadges +
       '<button class="dbg-action-btn dbg-jira-btn">🎫 Create Jira Ticket</button>' +
       '<button class="dbg-action-btn dbg-git-btn">⚙ Apply Git Fix</button>' +
+      '<button class="dbg-action-btn dbg-copilot-btn">🤖 Assign to Copilot</button>' +
       "</div>";
 
     card.innerHTML = headerHtml + promptHtml + bodyHtml + footerHtml;
@@ -1010,6 +1244,12 @@
     card.querySelector(".dbg-git-btn").addEventListener("click", function () {
       openGitModal(sessionId, turn.id);
     });
+
+    card
+      .querySelector(".dbg-copilot-btn")
+      .addEventListener("click", function () {
+        openCopilotModal(sessionId, turn.id, turn.assistantMessage || "");
+      });
 
     return card;
   }
@@ -1116,10 +1356,65 @@
     footer.insertBefore(badge, footer.firstChild);
   }
 
+  function openCopilotModal(sessionId, turnId, analysisText) {
+    dbgActiveModal.sessionId = sessionId;
+    dbgActiveModal.turnId = turnId;
+    var firstLine = (analysisText || "")
+      .split("\n")[0]
+      .replace(/^#+\s*/, "")
+      .slice(0, 120);
+    document.getElementById("copilot-issue-title").value = firstLine
+      ? "[Live Debugger] " + firstLine
+      : "";
+    document.getElementById("copilot-modal").classList.remove("hidden");
+  }
+
+  function updateCardCopilot(turnId, issueUrl) {
+    var card = document.querySelector(
+      '.analysis-card[data-turn-id="' + turnId + '"]',
+    );
+    if (!card) return;
+    var footer = card.querySelector(".analysis-footer");
+    if (!footer) return;
+    var existing = footer.querySelector(".badge-copilot");
+    if (existing) existing.remove();
+    var badge = document.createElement("a");
+    badge.href = issueUrl || "#";
+    badge.className = "badge-copilot";
+    badge.target = "_blank";
+    badge.rel = "noopener noreferrer";
+    badge.textContent = "🤖 Copilot Issue";
+    footer.insertBefore(badge, footer.firstChild);
+  }
+
   // Real-time debugger socket events
+  var CONNECT_LABELS = {
+    idle: "Idle",
+    connecting: "Connecting…",
+    connected: "Connected",
+    failed: "Failed",
+  };
+  function setDbgConnectStatus(state) {
+    var dot = document.getElementById("dbg-connect-dot");
+    var label = document.getElementById("dbg-connect-label");
+    if (!dot || !label) return;
+    dot.className = "dbg-connect-dot connect-" + state;
+    dot.title = "Debugger: " + (CONNECT_LABELS[state] || state);
+    label.textContent = CONNECT_LABELS[state] || state;
+    label.style.color =
+      state === "connected"
+        ? "var(--success)"
+        : state === "failed"
+          ? "var(--danger)"
+          : state === "connecting"
+            ? "var(--warning)"
+            : "var(--text-muted)";
+  }
+
   socket.on("debugger:log", function (data) {
     var feed = document.getElementById("dbg-log-feed");
     if (!feed || data.sessionId !== currentSessionId) return;
+    setDbgConnectStatus("connected");
     var line = makeDbgLogLine(data.line || "", data.timestamp || null, false);
     line.style.opacity = "0";
     line.style.transition = "opacity 0.2s";
@@ -1133,6 +1428,7 @@
   socket.on("debugger:analysis", function (data) {
     var list = document.getElementById("dbg-analysis-list");
     if (!list || data.sessionId !== currentSessionId) return;
+    setDbgConnectStatus("connected");
     var pseudoTurn = {
       id: "rt-" + Date.now(),
       userMessage: data.prompt || "",
@@ -1165,7 +1461,54 @@
 
   socket.on("debugger:error", function (data) {
     if (data.sessionId !== currentSessionId) return;
+    setDbgConnectStatus("failed");
     showToast(data.message || "Debugger error", "error");
+  });
+
+  socket.on("debugger:copilot-issue", function (data) {
+    if (data.sessionId !== currentSessionId) return;
+    if (data.turnId) updateCardCopilot(data.turnId, data.issueUrl);
+    showToast("🤖 Copilot issue #" + data.issueNumber + " created", "success");
+  });
+
+  // Persistent state for the blocked modal so the override button can replay the request
+  var copilotBlockedState = null;
+
+  function showCopilotBlockedModal(state) {
+    copilotBlockedState = state;
+    document.getElementById("copilot-blocked-violation").textContent =
+      "⚠ Guardrail blocked: " + (state.violation || "unknown rule");
+    document.getElementById("copilot-blocked-title").value =
+      state.blockedTitle || "";
+    document.getElementById("copilot-blocked-modal").classList.remove("hidden");
+  }
+
+  socket.on("debugger:copilot-guardrail-blocked", function (data) {
+    if (data.sessionId !== currentSessionId) return;
+    // Mark the analysis card with a "blocked" badge so it's visible even when the modal is closed
+    if (data.turnId) {
+      var card = document.querySelector(
+        '.analysis-card[data-turn-id="' + data.turnId + '"]',
+      );
+      if (card) {
+        var footer = card.querySelector(".analysis-footer");
+        if (footer && !footer.querySelector(".badge-guardrail-blocked")) {
+          var badge = document.createElement("span");
+          badge.className = "badge-guardrail-blocked";
+          badge.title = data.violation || "Guardrail blocked";
+          badge.textContent = "⚠ Copilot Blocked";
+          badge.style.cssText =
+            "background:rgba(224,168,82,0.15);color:var(--warning);border:1px solid var(--warning);" +
+            "border-radius:4px;padding:2px 8px;font-size:0.75rem;cursor:pointer;";
+          badge.addEventListener("click", function () {
+            showCopilotBlockedModal(data);
+          });
+          footer.insertBefore(badge, footer.firstChild);
+        }
+      }
+    }
+    showCopilotBlockedModal(data);
+    showToast("⚠ Copilot auto-assign blocked by guardrail", "error");
   });
 
   function initDebuggerUI() {
@@ -1194,6 +1537,7 @@
         this.textContent = "● Live";
         this.disabled = true;
         document.getElementById("dbg-live-dot").classList.remove("hidden");
+        setDbgConnectStatus("connecting");
       });
 
     // Remove debugger-mode when navigating via sidebar
@@ -1292,6 +1636,107 @@
         if (e.target === this) this.classList.add("hidden");
       });
 
+    // ── Copilot modal ──────────────────────────────────────────────────────
+    document
+      .getElementById("copilot-modal-close")
+      .addEventListener("click", function () {
+        document.getElementById("copilot-modal").classList.add("hidden");
+      });
+    document
+      .getElementById("copilot-cancel-btn")
+      .addEventListener("click", function () {
+        document.getElementById("copilot-modal").classList.add("hidden");
+      });
+    document
+      .getElementById("copilot-modal")
+      .addEventListener("click", function (e) {
+        if (e.target === this) this.classList.add("hidden");
+      });
+
+    document
+      .getElementById("copilot-submit-btn")
+      .addEventListener("click", function () {
+        var sessionId = dbgActiveModal.sessionId;
+        var turnId = dbgActiveModal.turnId;
+        if (!sessionId) return;
+
+        var token = document.getElementById("copilot-token").value.trim();
+        var repoUrl = document.getElementById("copilot-repo-url").value.trim();
+        if (!token || !repoUrl) {
+          showToast("GitHub token and repository URL are required", "error");
+          return;
+        }
+
+        var githubConfig = { token: token, repoUrl: repoUrl };
+        var assignee = document.getElementById("copilot-assignee").value.trim();
+        if (assignee) githubConfig.assignee = assignee;
+
+        // Collect guardrails
+        var guardrailsRaw = document
+          .getElementById("copilot-guardrails")
+          .value.trim();
+        if (guardrailsRaw) {
+          githubConfig.guardrails = guardrailsRaw
+            .split("\n")
+            .map(function (r) {
+              return r.trim();
+            })
+            .filter(Boolean);
+        }
+
+        var body = { githubConfig: githubConfig };
+        var title = document.getElementById("copilot-issue-title").value.trim();
+        if (title) body.title = title;
+        var labelsRaw = document.getElementById("copilot-labels").value.trim();
+        if (labelsRaw) {
+          body.labels = labelsRaw
+            .split(",")
+            .map(function (l) {
+              return l.trim();
+            })
+            .filter(Boolean);
+        }
+        if (turnId) body.turnId = turnId;
+
+        document.getElementById("copilot-submit-btn").disabled = true;
+        fetch("/api/debugger/" + sessionId + "/copilot-issue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (data.violation) {
+              // Guardrail blocked — show the blocked modal instead of closing
+              document.getElementById("copilot-modal").classList.add("hidden");
+              showCopilotBlockedModal({
+                sessionId: sessionId,
+                turnId: turnId,
+                violation: data.violation,
+                blockedTitle: title || "",
+                blockedBody: null,
+                blockedLabels: body.labels || [],
+                githubConfig: githubConfig,
+              });
+              return;
+            }
+            document.getElementById("copilot-modal").classList.add("hidden");
+            showToast(
+              "🤖 Copilot issue #" + data.issueNumber + " created",
+              "success",
+            );
+            if (turnId) updateCardCopilot(turnId, data.issueUrl);
+          })
+          .catch(function (err) {
+            showToast("Error: " + err.message, "error");
+          })
+          .finally(function () {
+            document.getElementById("copilot-submit-btn").disabled = false;
+          });
+      });
+
     document
       .getElementById("git-submit-btn")
       .addEventListener("click", function () {
@@ -1353,6 +1798,88 @@
           })
           .catch(function (err) {
             showToast("Error: " + err.message, "error");
+          });
+      });
+
+    // Copilot Blocked modal — close / dismiss / override
+    document
+      .getElementById("copilot-blocked-close")
+      .addEventListener("click", function () {
+        document
+          .getElementById("copilot-blocked-modal")
+          .classList.add("hidden");
+        copilotBlockedState = null;
+      });
+    document
+      .getElementById("copilot-blocked-dismiss")
+      .addEventListener("click", function () {
+        document
+          .getElementById("copilot-blocked-modal")
+          .classList.add("hidden");
+        copilotBlockedState = null;
+        showToast("Copilot assignment dismissed", "info");
+      });
+    document
+      .getElementById("copilot-blocked-modal")
+      .addEventListener("click", function (e) {
+        if (e.target === this) {
+          this.classList.add("hidden");
+          copilotBlockedState = null;
+        }
+      });
+    document
+      .getElementById("copilot-blocked-override")
+      .addEventListener("click", function () {
+        if (!copilotBlockedState) return;
+        var state = copilotBlockedState;
+        document
+          .getElementById("copilot-blocked-modal")
+          .classList.add("hidden");
+        copilotBlockedState = null;
+
+        var overrideBtn = document.getElementById("copilot-blocked-override");
+        overrideBtn.disabled = true;
+
+        var body = {
+          githubConfig: state.githubConfig || {},
+          bypassGuardrails: true,
+        };
+        if (state.turnId) body.turnId = state.turnId;
+        if (state.blockedTitle) body.title = state.blockedTitle;
+        if (state.blockedBody) body.body = state.blockedBody;
+        if (state.blockedLabels && state.blockedLabels.length)
+          body.labels = state.blockedLabels;
+
+        fetch("/api/debugger/" + state.sessionId + "/copilot-issue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            showToast(
+              "🤖 Copilot issue #" +
+                data.issueNumber +
+                " created (guardrail overridden)",
+              "success",
+            );
+            if (state.turnId) updateCardCopilot(state.turnId, data.issueUrl);
+            // Remove the blocked badge from the card
+            var card = document.querySelector(
+              '.analysis-card[data-turn-id="' + state.turnId + '"]',
+            );
+            if (card) {
+              var badge = card.querySelector(".badge-guardrail-blocked");
+              if (badge) badge.remove();
+            }
+          })
+          .catch(function (err) {
+            showToast("Override failed: " + err.message, "error");
+          })
+          .finally(function () {
+            overrideBtn.disabled = false;
           });
       });
   }

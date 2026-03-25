@@ -3,6 +3,7 @@ import { BaseProvider, Message, CompletionResult } from '../providers/base';
 import { Guardrail, guardrailsToSystemPrompt, checkFilePathGuardrails } from './guardrails';
 import { FileChange, createChange, applyChange, revertChange } from '../utils/file-ops';
 import { logger } from '../utils/logger';
+import type { GitHubConfig } from '../integrations/git';
 
 export interface SessionConfig {
   name: string;
@@ -12,6 +13,8 @@ export interface SessionConfig {
   guardrails?: Guardrail[];
   projectDir?: string;
   systemPrompt?: string;
+  /** GitHub integration — used by live debugger for auto-assign to Copilot */
+  github?: GitHubConfig;
 }
 
 /**
@@ -33,6 +36,8 @@ export interface DebuggerTurnMeta {
   jiraKey?: string;
   /** Git PR or commit URL if a git fix was committed */
   gitFixUrl?: string;
+  /** GitHub issue URL if the analysis was assigned to the Copilot coding agent */
+  copilotIssueUrl?: string;
 }
 
 export interface SessionTurn {
