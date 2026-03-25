@@ -6,6 +6,8 @@ import { LiveDebugger } from '../src/live-debugger/index';
 import { LogWatcher } from '../src/live-debugger/log-watcher';
 import { ServiceConnector } from '../src/live-debugger/service-connector';
 import { Session } from '../src/session/session';
+import { GitHubClient } from '../src/integrations/git';
+import { NotificationManager } from '../src/cluster-monitor/notifications';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -308,5 +310,202 @@ describe('ServiceConnector', () => {
       done();
     });
     connector.start();
+  });
+});
+
+// ── LiveDebugger — Copilot auto-assign guardrails ───────────────────────────
+
+/**
+ * Build a mock Session that has autoAssignCopilot: true + optional guardrails.
+ * The chat() mock immediately streams a deterministic analysis string so that
+ * flush() advances past the AI step and into the GitHub auto-assign path.
+ */
+function makeAutoAssignSession(guardrails: string[] = []): Session {
+  const session = new EventEmitter() as unknown as Session;
+  Object.assign(session, {
+    id: 'ga-session-id',
+    name: 'ga-test-session',
+    config: {
+      github: {
+        autoAssignCopilot: true,
+        token: 'ghp_test_token',
+        repoUrl: 'https://github.com/test-org/test-repo',
+        guardrails,
+      },
+    },
+    getTurns: jest.fn(() => [{ id: 'turn-ga-1', debuggerMeta: undefined as unknown }]),
+    chat: jest.fn(
+      async (_: string, opts?: { stream?: boolean; onChunk?: (c: string) => void }) => {
+        opts?.onChunk?.('ERROR: auto-assign analysis text');
+      },
+    ),
+  });
+  return session;
+}
+
+describe('LiveDebugger — Copilot auto-assign guardrails', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  /** Push `batchSize` error-containing lines to trigger flush. */
+  function fillBatch(
+    dbg: LiveDebugger,
+    count = 3,
+    line = 'ERROR: something bad happened',
+  ): void {
+    const hl = (dbg as unknown as { handleLine(l: string): void }).handleLine.bind(dbg);
+    for (let i = 0; i < count; i++) hl(`${line} (${i})`);
+  }
+
+  it('emits debugger:copilot-guardrail-blocked socket event when a guardrail fires', async () => {
+    jest
+      .spyOn(GitHubClient.prototype, 'checkCopilotGuardrails')
+      .mockReturnValue('Issue content contains denied keyword "secret" (rule: deny-keyword:secret)');
+
+    const emitted: Array<{ event: string; payload: unknown }> = [];
+    const mockIo = {
+      to: jest.fn().mockReturnValue({
+        emit: jest.fn((event: string, payload: unknown) => {
+          emitted.push({ event, payload });
+        }),
+      }),
+    };
+
+    const session = makeAutoAssignSession(['deny-keyword:secret']);
+    const dbg = new LiveDebugger({
+      session,
+      batchSize: 3,
+      maxWaitSeconds: 60,
+      retryCount: 0,
+      io: mockIo,
+    });
+    dbg.on('error', () => { /* swallow */ });
+
+    fillBatch(dbg);
+    await new Promise((r) => setTimeout(r, 150));
+
+    const blocked = emitted.find((e) => e.event === 'debugger:copilot-guardrail-blocked');
+    expect(blocked).toBeDefined();
+    expect((blocked!.payload as Record<string, unknown>).violation).toMatch(/denied keyword/);
+    expect((blocked!.payload as Record<string, unknown>).sessionId).toBe('ga-session-id');
+    dbg.stop();
+  });
+
+  it('does NOT call createIssueForCopilot when a guardrail blocks the issue', async () => {
+    jest
+      .spyOn(GitHubClient.prototype, 'checkCopilotGuardrails')
+      .mockReturnValue('denied keyword match');
+    const createSpy = jest
+      .spyOn(GitHubClient.prototype, 'createIssueForCopilot')
+      .mockResolvedValue({ issueNumber: 1, issueUrl: 'https://github.com/test/repo/issues/1' });
+
+    const session = makeAutoAssignSession();
+    const dbg = new LiveDebugger({ session, batchSize: 3, maxWaitSeconds: 60, retryCount: 0 });
+    dbg.on('error', () => { /* swallow */ });
+
+    fillBatch(dbg);
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(createSpy).not.toHaveBeenCalled();
+    dbg.stop();
+  });
+
+  it('calls createIssueForCopilot when the guardrail check returns null (passes)', async () => {
+    jest
+      .spyOn(GitHubClient.prototype, 'checkCopilotGuardrails')
+      .mockReturnValue(null);
+    const createSpy = jest
+      .spyOn(GitHubClient.prototype, 'createIssueForCopilot')
+      .mockResolvedValue({ issueNumber: 5, issueUrl: 'https://github.com/test/repo/issues/5' });
+
+    const session = makeAutoAssignSession();
+    const dbg = new LiveDebugger({ session, batchSize: 3, maxWaitSeconds: 60, retryCount: 0 });
+    dbg.on('error', () => { /* swallow */ });
+
+    fillBatch(dbg);
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(createSpy).toHaveBeenCalledTimes(1);
+    dbg.stop();
+  });
+
+  it('sends a notification when guardrail fires and notifications are configured', async () => {
+    jest
+      .spyOn(GitHubClient.prototype, 'checkCopilotGuardrails')
+      .mockReturnValue('max-title-length exceeded');
+
+    const sendSpy = jest
+      .spyOn(NotificationManager.prototype, 'send')
+      .mockResolvedValue(undefined);
+
+    const session = makeAutoAssignSession();
+    const dbg = new LiveDebugger({
+      session,
+      batchSize: 3,
+      maxWaitSeconds: 60,
+      retryCount: 0,
+      notifications: { slack: { enabled: false, webhookUrl: 'https://hooks.slack.com/test' } },
+    });
+    dbg.on('error', () => { /* swallow */ });
+
+    fillBatch(dbg);
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(sendSpy).toHaveBeenCalled();
+    const callArg = sendSpy.mock.calls[0][0] as { title: string; body: string };
+    expect(callArg.title).toMatch(/blocked/i);
+    expect(callArg.body).toContain('max-title-length exceeded');
+    dbg.stop();
+  });
+
+  it('does NOT send a notification when guardrail fires but no notifications are configured', async () => {
+    jest
+      .spyOn(GitHubClient.prototype, 'checkCopilotGuardrails')
+      .mockReturnValue('denied keyword found');
+
+    const sendSpy = jest
+      .spyOn(NotificationManager.prototype, 'send')
+      .mockResolvedValue(undefined);
+
+    const session = makeAutoAssignSession();
+    // No notifications option
+    const dbg = new LiveDebugger({ session, batchSize: 3, maxWaitSeconds: 60, retryCount: 0 });
+    dbg.on('error', () => { /* swallow */ });
+
+    fillBatch(dbg);
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(sendSpy).not.toHaveBeenCalled();
+    dbg.stop();
+  });
+
+  it('does NOT create a copilot issue when autoAssignCopilot is false', async () => {
+    const createSpy = jest
+      .spyOn(GitHubClient.prototype, 'createIssueForCopilot')
+      .mockResolvedValue({ issueNumber: 1, issueUrl: 'https://github.com/test/repo/issues/1' });
+
+    // Session with autoAssignCopilot: false
+    const session = new EventEmitter() as unknown as Session;
+    Object.assign(session, {
+      id: 'no-autoassign',
+      name: 'test',
+      config: {
+        github: { autoAssignCopilot: false, token: 'ghp_test', repoUrl: 'https://github.com/test/repo' },
+      },
+      getTurns: jest.fn(() => []),
+      chat: jest.fn(async (_: string, opts?: { onChunk?: (c: string) => void }) => {
+        opts?.onChunk?.('ERROR: analysis');
+      }),
+    });
+
+    const dbg = new LiveDebugger({ session, batchSize: 3, maxWaitSeconds: 60, retryCount: 0 });
+    dbg.on('error', () => { /* swallow */ });
+
+    fillBatch(dbg);
+    await new Promise((r) => setTimeout(r, 150));
+
+    expect(createSpy).not.toHaveBeenCalled();
+    dbg.stop();
   });
 });

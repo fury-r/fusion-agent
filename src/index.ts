@@ -13,8 +13,8 @@ export type { AIAgentConfig, GuardrailConfig } from './utils/config';
 export { gatherProjectContext, getDirectoryStructure, createChange, applyChange, revertChange } from './utils/file-ops';
 export { AutonomousVibeAgent, extractFileBlocks, detectCompletion, LoopDetector, jaccardSimilarity } from './vibe-coder';
 export type { AutonomousConfig, VibeCoderRule, VibeCoderStep, AutonomousStatus, HILReason, HILRequest, VibeCoderFileChange } from './vibe-coder';
-export { JiraClient, GitPatchApplier } from './integrations';
-export type { JiraConfig, JiraIssuePayload, JiraIssueResult, GitConfig, GitPatchOptions, GitPatchResult } from './integrations';
+export { JiraClient, GitPatchApplier, GitHubClient } from './integrations';
+export type { JiraConfig, JiraIssuePayload, JiraIssueResult, GitConfig, GitPatchOptions, GitPatchResult, GitHubConfig, GitHubIssueResult } from './integrations';
 
 import { loadConfig, AIAgentConfig } from './utils/config';
 import { createProvider } from './providers';

@@ -1,0 +1,24 @@
+{
+    "provider": "openai",
+    "model": "gpt-4o",
+    "port": 3000,
+    "github": {
+        "token": "ghp_YOUR_PERSONAL_ACCESS_TOKEN",
+        "repoUrl": "https://github.com/your-org/my-service",
+        "assignee": "copilot",
+        "autoAssignCopilot": true,
+        "guardrails": [
+            "deny-keyword:classified",
+            "deny-keyword:internal-only",
+            "require-label:fusion-agent",
+            "max-title-length:200",
+            "max-body-length:65536"
+        ]
+    },
+    "guardrails": [
+        {
+            "type": "custom",
+            "value": "Always propose fixes in TypeScript"
+        }
+    ]
+}

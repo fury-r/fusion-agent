@@ -1,0 +1,123 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Live Debugger — Self-Fix + GitHub Commit  •  docker-compose.yml
+#
+# Services
+# ────────
+#   dummy-server    Node.js server that intentionally emits errors every 5 s.
+#
+#   selffix         fusion-agent live debugger that extracts code changes from
+#                   each AI analysis, commits them to a branch, and opens a PR.
+#                   Includes Jira ticketing and Slack/webhook notifications.
+#
+# Quick start
+# ──────────
+#   # 1. Clone the repo you want to auto-fix onto the host
+#   git clone https://github.com/your-org/my-service /home/you/my-service
+#
+#   # 2. Fill in secrets
+#   cp .env.example .env
+#
+#   # 3. Set the host path to your local repo clone
+#   echo 'GIT_REPO_HOST_PATH=/home/you/my-service' >> .env
+#
+#   # 4. Start
+#   docker compose up --build
+#
+# Web UI:   http://localhost:3000
+# Dummy:    http://localhost:8080/health
+#           http://localhost:8080/crash   (trigger an extra error batch)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Dummy error-emitting server ─────────────────────────────────────────────
+  dummy-server:
+    build:
+      context: ../live-debugger-dummy-server
+      dockerfile: Dockerfile
+    container_name: fusion-live-debugger-dummy
+    environment:
+      PORT: "8080"
+      ERROR_INTERVAL_MS: "${ERROR_INTERVAL_MS:-5000}"
+      DUMMY_DB_HOST: "127.0.0.1"
+      DUMMY_DB_PORT: "5432"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Self-fix live debugger ───────────────────────────────────────────────────
+  selffix:
+    build:
+      context: ../..
+      dockerfile: deploy/live-debugger-selffix/Dockerfile
+    container_name: fusion-selffix
+    depends_on:
+      dummy-server:
+        condition: service_healthy
+
+    environment:
+      # ── AI provider ──────────────────────────────────────────────────────
+      AI_PROVIDER: "${AI_PROVIDER:-openai}"
+      AI_MODEL: "${AI_MODEL:-gpt-4o}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+
+      # ── GitHub / git ──────────────────────────────────────────────────────
+      # Token needs: repo + pull_request:write scopes
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      GITHUB_REPO: "${GITHUB_REPO:-}"           # https://github.com/org/my-service
+      # Path inside the container — matches the /repo volume mount below
+      GIT_REPO_PATH: "/repo"
+      GIT_BRANCH: "${GIT_BRANCH:-fusion-agent/auto-fix}"
+      BASE_BRANCH: "${BASE_BRANCH:-main}"
+      GIT_API_BASE_URL: "${GIT_API_BASE_URL:-https://api.github.com}"
+      GIT_AUTHOR_NAME: "${GIT_AUTHOR_NAME:-fusion-agent[bot]}"
+      GIT_AUTHOR_EMAIL: "${GIT_AUTHOR_EMAIL:-fusion-agent@noreply}"
+
+      # ── Docker container to watch ─────────────────────────────────────────
+      DOCKER_CONTAINER: "fusion-live-debugger-dummy"
+
+      # ── Web UI ────────────────────────────────────────────────────────────
+      WEB_PORT: "3000"
+
+      # ── Jira (optional) ───────────────────────────────────────────────────
+      JIRA_BASE_URL: "${JIRA_BASE_URL:-}"
+      JIRA_EMAIL: "${JIRA_EMAIL:-}"
+      JIRA_API_TOKEN: "${JIRA_API_TOKEN:-}"
+      JIRA_PROJECT_KEY: "${JIRA_PROJECT_KEY:-OPS}"
+
+      # ── Notifications (optional) ──────────────────────────────────────────
+      # Sent when a git guardrail rejects a commit, or retries are exhausted
+      SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
+      NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
+
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+    volumes:
+      # Persist session files across restarts
+      - fusion-agent-sessions:/root/.fusion-agent
+
+      # ── The repo to auto-fix ─────────────────────────────────────────────
+      # Set GIT_REPO_HOST_PATH in your .env file to the absolute path of the
+      # local git clone on the host.  It is mounted read-write so the container
+      # can commit changes just as if you ran 'git commit' on the host.
+      #
+      #   GIT_REPO_HOST_PATH=/home/you/my-service
+      #
+      - "${GIT_REPO_HOST_PATH:-/tmp/fusion-agent-repo}:/repo"
+
+      # Docker socket so the debugger can tail the dummy-server logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    restart: unless-stopped
+
+# ── Named volumes ──────────────────────────────────────────────────────────────
+volumes:
+  fusion-agent-sessions:

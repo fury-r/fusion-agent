@@ -6,6 +6,7 @@ import { ServiceConnector, ServiceConnectionOptions } from './service-connector'
 import { logger } from '../utils/logger';
 import { NotificationManager } from '../cluster-monitor/notifications';
 import { NotificationConfig } from '../cluster-monitor/types';
+import { GitHubClient } from '../integrations/git';
 
 export interface LiveDebuggerOptions {
   session: Session;
@@ -240,6 +241,67 @@ export class LiveDebugger extends EventEmitter {
         analysis,
         meta,
       });
+
+      // Auto-assign to GitHub Copilot agent if configured
+      const ghCfg = this.session.config.github;
+      if (ghCfg?.autoAssignCopilot && ghCfg.token && ghCfg.repoUrl) {
+        try {
+          const ghClient = new GitHubClient(ghCfg);
+          const firstLine = analysis.split('\n')[0].replace(/^#+\s*/, '').slice(0, 140);
+          const issueTitle = `[Live Debugger] ${this.session.name ?? this.sessionId}: ${firstLine}`;
+          const issueBody =
+            `## Live Debugger Analysis\n\n` +
+            `**Session:** ${this.session.name ?? this.sessionId}  \n` +
+            `**Detected:** ${promptSentAt}\n\n` +
+            `### Matched Log Lines\n\`\`\`\n${lines.slice(0, 30).join('\n')}\n\`\`\`\n\n` +
+            `### AI Analysis\n${analysis}`;
+          const issueLabels = ['fusion-agent'];
+
+          // Check guardrails before creating the issue
+          const guardrailViolation = ghClient.checkCopilotGuardrails(issueTitle, issueBody, issueLabels);
+          if (guardrailViolation) {
+            logger.warn(`Copilot auto-assign blocked by guardrail: ${guardrailViolation}`);
+            const blockedPayload = {
+              sessionId: this.sessionId,
+              turnId: lastTurn?.id,
+              violation: guardrailViolation,
+              blockedTitle: issueTitle,
+              blockedBody: issueBody,
+              blockedLabels: issueLabels,
+            };
+            // Always push to the Web UI so the user can override
+            this.io?.to(`debugger:${this.sessionId}`).emit('debugger:copilot-guardrail-blocked', blockedPayload);
+            // Also notify via external channels when configured
+            if (this.notificationManager) {
+              await this.notificationManager.send({
+                title: `⚠ Copilot auto-assign blocked`,
+                body:
+                  `Session: ${this.session.name ?? this.sessionId}\n` +
+                  `Guardrail: ${guardrailViolation}\n` +
+                  `Issue title: ${issueTitle}\n\n` +
+                  `Review in the Web UI and click "Override & Assign" to proceed.`,
+                severity: 'warning',
+                service: this.session.name ?? this.sessionId,
+              });
+            }
+            return; // skip issue creation
+          }
+
+          const issueResult = await ghClient.createIssueForCopilot(issueTitle, issueBody, issueLabels);
+          logger.info(`Auto-assigned to Copilot: ${issueResult.issueUrl}`);
+          if (lastTurn?.debuggerMeta) {
+            lastTurn.debuggerMeta.copilotIssueUrl = issueResult.issueUrl;
+          }
+          this.io?.to(`debugger:${this.sessionId}`).emit('debugger:copilot-issue', {
+            sessionId: this.sessionId,
+            turnId: lastTurn?.id,
+            issueUrl: issueResult.issueUrl,
+            issueNumber: issueResult.issueNumber,
+          });
+        } catch (ghErr) {
+          logger.warn(`Auto-assign to Copilot failed (non-fatal): ${ghErr}`);
+        }
+      }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.error(`Live debugger analysis error (all retries exhausted): ${error.message}`);

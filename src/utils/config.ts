@@ -3,6 +3,26 @@ import path from 'path';
 import os from 'os';
 import yaml from 'js-yaml';
 
+export interface GitHubAppConfig {
+  token?: string;
+  apiBaseUrl?: string;
+  repoUrl?: string;
+  /** Assignee for the Copilot coding agent (default: 'copilot') */
+  assignee?: string;
+  /** Auto-file and assign a GitHub issue after each live debugger analysis */
+  autoAssignCopilot?: boolean;
+  /**
+   * Guardrail rules evaluated before every Copilot issue is created.
+   *
+   * Supported formats:
+   *   deny-keyword:<word>     — block if title or body contains the word (case-insensitive)
+   *   require-label:<label>   — block if the label is absent from the issue labels
+   *   max-title-length:<n>    — block if the issue title exceeds N characters
+   *   max-body-length:<n>     — block if the issue body exceeds N characters
+   */
+  guardrails?: string[];
+}
+
 export interface AIAgentConfig {
   provider: 'openai' | 'anthropic' | 'gemini';
   model?: string;
@@ -11,6 +31,8 @@ export interface AIAgentConfig {
   sessionDir?: string;
   guardrails?: GuardrailConfig[];
   logLevel?: string;
+  /** GitHub integration settings applied to all new debugger sessions */
+  github?: GitHubAppConfig;
 }
 
 export interface GuardrailConfig {
