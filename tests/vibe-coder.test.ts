@@ -261,6 +261,7 @@ function makeMockLiveSession(chatImpl?: () => Promise<void>): Session {
       return { id: 't', timestamp: '', userMessage: '', assistantMessage: 'ok' };
     }
   );
+  (session as unknown as Record<string, unknown>).getTurns = jest.fn(() => []);
   return session;
 }
 

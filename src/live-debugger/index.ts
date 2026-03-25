@@ -226,7 +226,7 @@ export class LiveDebugger extends EventEmitter {
       };
 
       // Attach meta to the most-recently created turn
-      const turns = this.session.getTurns();
+      const turns = typeof this.session.getTurns === 'function' ? this.session.getTurns() : [];
       const lastTurn = turns[turns.length - 1];
       if (lastTurn) {
         lastTurn.debuggerMeta = meta;
@@ -246,7 +246,7 @@ export class LiveDebugger extends EventEmitter {
       const notified = await this.notifyFailure(error, lines);
       if (notified) {
         // Mark the last turn's meta as notified if it exists
-        const turns = this.session.getTurns();
+        const turns = typeof this.session.getTurns === 'function' ? this.session.getTurns() : [];
         const lastTurn = turns[turns.length - 1];
         if (lastTurn?.debuggerMeta) {
           lastTurn.debuggerMeta.notificationSent = true;
