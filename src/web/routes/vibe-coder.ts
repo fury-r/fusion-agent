@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Socket } from 'socket.io';
 import path from 'path';
+import { execFile } from 'child_process';
 import { SessionManager } from '../../session/session-manager';
 import { SPECKITS } from '../../speckits';
 import { gatherProjectContext } from '../../utils/file-ops';
@@ -356,6 +357,34 @@ export function createVibeCoderRoutes(
         options.apiKey
       );
       res.json(session.toJSON());
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/vibe-coder/sessions/:id/open-dir — open project dir in OS file manager
+  router.get('/sessions/:id/open-dir', (req: Request, res: Response) => {
+    try {
+      const session = sessionManager.loadSession(req.params.id);
+      const dir = session.config.projectDir || process.cwd();
+
+      // Resolve opener based on platform / available commands
+      const openers: [string, string[]][] = [
+        ['xdg-open', [dir]],
+        ['open', [dir]],
+        ['explorer.exe', [dir]],
+      ];
+      let launched = false;
+      for (const [cmd, args] of openers) {
+        try {
+          execFile(cmd, args, { timeout: 3000 });
+          launched = true;
+          break;
+        } catch {
+          // try next
+        }
+      }
+      res.json({ dir, launched });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }

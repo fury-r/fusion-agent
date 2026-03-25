@@ -140,7 +140,7 @@ program
   .option('-f, --file <logFile>', 'Watch a log file')
   .option('-d, --docker <container>', 'Attach to Docker container logs')
   .option('-c, --cmd <command>', 'Run and attach to a process command')
-  .option('-s, --session <name>', 'Session name (default: live-debugger-<id>)')
+  .option('-s, --session <name>', 'Session name (default: <svc-name>-live-debug-<id>)')
   .option('--batch <n>', 'Lines to batch before analysis', '20')
   .option('--retry <n>', 'AI analysis retry attempts on failure', '3')
   .option('--retry-delay <ms>', 'Base retry delay in ms (doubles each attempt)', '1000')
@@ -168,8 +168,12 @@ program
     const sessionsDir = config.sessionDir || path.join(os.homedir(), '.fusion-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
 
-    // Build session name: user-provided, else live-debugger-<shortId>
-    const sessionName = opts.session || `live-debugger-${Date.now().toString(36)}`;
+    // Build session name: user-provided, else {svc-name}-live-debug-{shortId}
+    const svcName = (opts.docker as string | undefined)
+      || (opts.file as string | undefined)?.replace(/.*[/\\]/, '').replace(/\.[^.]+$/, '')
+      || (opts.cmd as string | undefined)?.split(/\s+/)[0]
+      || 'service';
+    const sessionName = opts.session || `${svcName}-live-debug-${Date.now().toString(36)}`;
 
     const session = sessionManager.createSession(
       {

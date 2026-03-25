@@ -516,17 +516,19 @@ When you click on a debugger session (one with `speckit: 'debugger'`), you see a
 
 Each batch of matched log lines that was sent to the AI produces one card:
 
-| Card element                 | Description                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------------- |
-| **Analysis #N** + timestamps | Sequential number, prompt-sent time, response-received time, and duration in ms |
-| **Prompt sent** (collapsed)  | Click to expand and see the exact prompt that was sent to the AI                |
-| **AI response**              | Full analysis with code-block rendering (same as Vibe Coder)                    |
-| 🔔 **Notified** badge        | Shown if a Slack/webhook notification was dispatched for this event             |
-| 🔧 **Fix applied** badge     | Shown if a git fix was committed for this analysis                              |
-| **Jira key chip**            | e.g. `OPS-123` — shown after a ticket is created                                |
-| **Git fix chip**             | PR URL or commit SHA — shown after a git fix is applied                         |
-| **🎫 Create Jira Ticket**    | Opens the Jira modal to file a ticket from this analysis                        |
-| **⚙ Apply Git Fix**          | Opens the Git modal to commit AI-proposed code changes                          |
+| Card element                 | Description                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| **Analysis #N** + timestamps | Sequential number, prompt-sent time, response-received time, and duration in ms          |
+| **Prompt sent** (collapsed)  | Click to expand and see the exact prompt that was sent to the AI                         |
+| **AI response**              | Full analysis with code-block rendering (same as Vibe Coder)                             |
+| 🔔 **Notified** badge        | Shown if a Slack/webhook notification was dispatched for this event                      |
+| 🔧 **Fix applied** badge     | Shown if a git fix was committed for this analysis                                       |
+| **Jira key chip**            | e.g. `OPS-123` — shown after a ticket is created                                         |
+| **Git fix chip**             | PR URL or commit SHA — shown after a git fix is applied                                  |
+| **🎫 Create Jira Ticket**    | Opens the Jira modal to file a ticket from this analysis                                 |
+| **⚙ Apply Git Fix**          | Opens the Git modal to commit AI-proposed code changes                                   |
+| **🤖 Assign to Copilot**     | Opens the Copilot modal to file a GitHub issue and assign it to the Copilot coding agent |
+| 🤖 **Copilot issue chip**    | Link to the GitHub issue — shown after a Copilot issue is created                        |
 
 #### Info Panel (right panel)
 
@@ -569,6 +571,22 @@ Click **Create Ticket** — the ticket is created via `POST /api/debugger/:sessi
 | Guardrails     | One rule per line (e.g. `allow-path:src/`, `deny-path:secrets/`)                |
 
 Click **Apply Fix** — the AI-proposed code blocks are extracted from the analysis, written to disk, committed, and optionally pushed + PRed via `POST /api/debugger/:sessionId/git-fix`. The resulting PR URL or commit SHA appears on the analysis card.
+
+#### 🤖 Copilot Modal
+
+| Field          | Description                                                                  |
+| -------------- | ---------------------------------------------------------------------------- |
+| GitHub Token   | Personal access token with `repo` + `issues:write` scope                     |
+| Repository URL | e.g. `https://github.com/org/repo`                                           |
+| Assignee       | Default: `copilot` — the bot username that triggers the Copilot coding agent |
+| Issue Title    | Pre-populated from the first line of the AI analysis; editable               |
+| Labels         | Comma-separated labels applied to the issue                                  |
+
+Click **🤖 Assign to Copilot** — a GitHub issue is created and immediately assigned. The Copilot coding agent picks it up and autonomously opens a fix PR. The **🤖 Copilot Issue** chip appears on the card linking to the issue.
+
+> **Note:** When Copilot is assigned (manually or via `autoAssignCopilot`), the live debugger **does not apply its own git fix**. Fix responsibility is fully delegated to the Copilot coding agent. Use **⚙ Apply Git Fix** only when you want fusion-agent itself to commit and push the change.
+
+**Auto-assign without clicking:** set `github.autoAssignCopilot: true` in your config file (see [End-to-End Examples](#end-to-end-examples)) to fire this automatically after every AI analysis.
 
 ### ⚡ Vibe Coder
 
@@ -703,7 +721,7 @@ const debugger_ = new LiveDebugger({
   onAnalysis: (analysis, meta) => {
     console.log("AI:", analysis);
     // meta: { matchedLogLines, promptSentAt, responseReceivedAt,
-    //         notificationSent, fixApplied, jiraKey?, gitFixUrl? }
+    //         notificationSent, fixApplied, jiraKey?, gitFixUrl?, copilotIssueUrl? }
     console.log("Prompt sent at:", meta.promptSentAt);
     console.log("Response received at:", meta.responseReceivedAt);
   },
@@ -928,20 +946,235 @@ await server.start();
 
 ---
 
+## End-to-End Examples
+
+### Live Debugger with Jira, Git Fix, and GitHub Copilot
+
+This example ties together every integration: watch a Docker container, file a Jira ticket when an error is found, push an AI-generated fix to GitHub, and optionally let the **GitHub Copilot coding agent** pick up the issue autonomously.
+
+#### 1 — Start the live debugger (CLI)
+
+```bash
+export OPENAI_API_KEY=sk-...
+
+# Attach to a Docker container and open the Web UI at http://localhost:3000
+ai-agent debug \
+  --docker my-api \
+  --log-level ERROR,FATAL \
+  --batch 15 \
+  --retry 3 \
+  --notify-slack https://hooks.slack.com/services/XXX/YYY/ZZZ \
+  --session my-api-live-debug \
+  --ui --port 3000
+```
+
+#### 2 — Configure the session for auto-assign to GitHub Copilot
+
+Add a `github` block to your `.fusion-agent.json` (or `~/.fusion-agent/config.json`). When `autoAssignCopilot` is `true` the live debugger will **automatically** create a GitHub issue and assign it to `copilot` after every AI analysis — no manual click required.
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o",
+  "github": {
+    "token": "ghp_...",
+    "repoUrl": "https://github.com/your-org/my-api",
+    "assignee": "copilot",
+    "autoAssignCopilot": true
+  }
+}
+```
+
+> The GitHub token needs **`repo`** + **`issues:write`** scopes.
+
+#### 3 — Manually file a Jira ticket from the Web UI
+
+1. Open `http://localhost:3000` and navigate to the `my-api-live-debug` session.
+2. Click **Subscribe Live** to watch logs in real time.
+3. When an AI Analysis card appears, click **🎫 Create Jira Ticket**.
+4. Fill in the modal:
+
+| Field       | Value                                      |
+| ----------- | ------------------------------------------ |
+| Jira URL    | `https://yourorg.atlassian.net`            |
+| Email       | `ops@yourorg.com`                          |
+| API Token   | _(from id.atlassian.com)_                  |
+| Project Key | `OPS`                                      |
+| Priority    | `High`                                     |
+| Labels      | `live-debugger, production`                |
+| Guardrails  | `deny-keyword:classified` _(one per line)_ |
+
+5. Click **Create Ticket** — the `OPS-42` chip appears on the card.
+
+#### 4 — Apply a Git fix and open a Pull Request
+
+Click **⚙ Apply Git Fix** on the same card:
+
+| Field          | Value                                    |
+| -------------- | ---------------------------------------- |
+| Repo Path      | `/home/ubuntu/my-api`                    |
+| Token          | `ghp_...`                                |
+| Remote URL     | `https://github.com/your-org/my-api`     |
+| Branch         | `fusion-agent/auto-fix`                  |
+| GitHub API URL | `https://api.github.com`                 |
+| Commit Message | `fix: address OOM killer (AI-suggested)` |
+| PR Title       | `fix: address OOM killer (AI-suggested)` |
+| Base Branch    | `main`                                   |
+| Guardrails     | `allow-path:src/` _(one per line)_       |
+
+The PR URL (e.g. `https://github.com/your-org/my-api/pull/43`) appears on the card as **🔗 Git Fix**.
+
+#### 5 — Assign to the GitHub Copilot coding agent (manual)
+
+If you did **not** set `autoAssignCopilot: true`, click **🤖 Assign to Copilot** on the card:
+
+| Field          | Value                                |
+| -------------- | ------------------------------------ |
+| GitHub Token   | `ghp_...` _(issues:write scope)_     |
+| Repository URL | `https://github.com/your-org/my-api` |
+| Assignee       | `copilot` _(default)_                |
+| Issue Title    | _(auto-populated from analysis)_     |
+| Labels         | `bug, fusion-agent`                  |
+
+Click **🤖 Assign to Copilot** — a GitHub issue is created and immediately assigned to the Copilot coding agent. Copilot will open a fix PR autonomously. The **🤖 Copilot Issue** chip appears on the card linking to the issue.
+
+> **Note:** Assigning to Copilot and applying your own git fix are mutually exclusive workflows. Use one or the other — do not do both for the same analysis event, as you will end up with two competing PRs.
+
+#### Full config file example
+
+```json
+{
+  "provider": "openai",
+  "model": "gpt-4o",
+  "port": 3000,
+  "github": {
+    "token": "ghp_...",
+    "repoUrl": "https://github.com/your-org/my-api",
+    "assignee": "copilot",
+    "autoAssignCopilot": true
+  },
+  "guardrails": [
+    { "type": "custom", "value": "Always use TypeScript strict mode" }
+  ]
+}
+```
+
+#### Full programmatic example
+
+```typescript
+import {
+  AgentCLI,
+  LiveDebugger,
+  GitHubClient,
+  GitPatchApplier,
+  JiraClient,
+  createWebServer,
+} from "fusion-agent";
+
+const agent = new AgentCLI({ provider: "openai", model: "gpt-4o" });
+
+// Create a debugger session with GitHub auto-assign enabled
+const session = agent.createSession({
+  name: "my-api-live-debug",
+  speckit: "debugger",
+  projectDir: process.cwd(),
+  github: {
+    token: process.env.GITHUB_TOKEN!,
+    repoUrl: "https://github.com/your-org/my-api",
+    assignee: "copilot",
+    autoAssignCopilot: true, // fires automatically after each analysis
+  },
+});
+
+const server = createWebServer({
+  port: 3000,
+  sessionManager: agent.sessionManager,
+  apiKey: process.env.OPENAI_API_KEY,
+  provider: "openai",
+});
+await server.start();
+
+const debugger_ = new LiveDebugger({
+  session,
+  io: server.io,
+  batchSize: 15,
+  logLevels: ["ERROR", "FATAL"],
+  retryCount: 3,
+  notifications: {
+    slack: { enabled: true, webhookUrl: process.env.SLACK_WEBHOOK! },
+  },
+  onAnalysis: async (analysis, meta) => {
+    // Persist the turn so the Web UI shows it immediately
+    agent.sessionManager.persistSession(session);
+
+    // Manually file a Jira ticket for every analysis
+    const jira = new JiraClient({
+      baseUrl: "https://yourorg.atlassian.net",
+      email: "ops@yourorg.com",
+      apiToken: process.env.JIRA_TOKEN!,
+      projectKey: "OPS",
+      labels: ["live-debugger"],
+    });
+    const ticket = await jira.createIssue({
+      summary: `[Live Debugger] ${analysis.split("\n")[0].slice(0, 100)}`,
+      description: `**Log lines:**\n${meta.matchedLogLines.join("\n")}\n\n**Analysis:**\n${analysis}`,
+      priority: "High",
+    });
+    console.log("Jira ticket:", ticket.key);
+
+    // Apply AI code fix to git and open a PR
+    const patcher = new GitPatchApplier({
+      repoPath: "/home/ubuntu/my-api",
+      token: process.env.GITHUB_TOKEN!,
+      remoteUrl: "https://github.com/your-org/my-api",
+      branch: "fusion-agent/auto-fix",
+      apiBaseUrl: "https://api.github.com",
+      guardrails: ["allow-path:src/", "max-files:10"],
+    });
+    // (extract file blocks from analysis then)
+    // const result = await patcher.applyAndCommit({ files, commitMessage, pullRequestTitle });
+
+    // Or — manually assign to Copilot (autoAssignCopilot does this automatically above)
+    const gh = new GitHubClient({
+      token: process.env.GITHUB_TOKEN!,
+      repoUrl: "https://github.com/your-org/my-api",
+    });
+    const issue = await gh.createIssueForCopilot(
+      `[Live Debugger] ${analysis.split("\n")[0].slice(0, 100)}`,
+      `## Analysis\n${analysis}\n\n## Log Lines\n\`\`\`\n${meta.matchedLogLines.join("\n")}\n\`\`\``,
+      ["bug", "fusion-agent"],
+    );
+    console.log("Copilot issue:", issue.issueUrl);
+  },
+});
+
+debugger_.on("error", (err) => console.error("Debugger error:", err.message));
+debugger_.connectToService({ type: "docker", container: "my-api" });
+
+process.on("SIGINT", () => {
+  debugger_.stop();
+  agent.sessionManager.persistSession(session);
+  void server.stop();
+});
+```
+
+---
+
 ## REST API Reference (Web UI Backend)
 
 When the web server is running these endpoints are available in addition to the UI:
 
-| Method   | Path                               | Description                                              |
-| -------- | ---------------------------------- | -------------------------------------------------------- |
-| `GET`    | `/api/sessions`                    | List all sessions                                        |
-| `GET`    | `/api/sessions/:id`                | Get full session detail (including turns + debuggerMeta) |
-| `DELETE` | `/api/sessions/:id`                | Delete a session                                         |
-| `GET`    | `/api/sessions/:id/export`         | Download session as JSON                                 |
-| `POST`   | `/api/debugger/:sessionId/jira`    | Create a Jira ticket from a debugger turn                |
-| `POST`   | `/api/debugger/:sessionId/git-fix` | Apply AI code fixes from a debugger turn to a git repo   |
-| `GET`    | `/api/settings`                    | Get current settings                                     |
-| `POST`   | `/api/settings`                    | Update settings                                          |
+| Method   | Path                                     | Description                                                     |
+| -------- | ---------------------------------------- | --------------------------------------------------------------- |
+| `GET`    | `/api/sessions`                          | List all sessions                                               |
+| `GET`    | `/api/sessions/:id`                      | Get full session detail (including turns + debuggerMeta)        |
+| `DELETE` | `/api/sessions/:id`                      | Delete a session                                                |
+| `GET`    | `/api/sessions/:id/export`               | Download session as JSON                                        |
+| `POST`   | `/api/debugger/:sessionId/jira`          | Create a Jira ticket from a debugger turn                       |
+| `POST`   | `/api/debugger/:sessionId/git-fix`       | Apply AI code fixes from a debugger turn to a git repo          |
+| `POST`   | `/api/debugger/:sessionId/copilot-issue` | Create a GitHub issue and assign it to the Copilot coding agent |
+| `GET`    | `/api/settings`                          | Get current settings                                            |
+| `POST`   | `/api/settings`                          | Update settings                                                 |
 
 ### `POST /api/debugger/:sessionId/jira`
 
@@ -1002,6 +1235,86 @@ Response:
   "pullRequestUrl": "https://github.com/org/repo/pull/43"
 }
 ```
+
+### `POST /api/debugger/:sessionId/copilot-issue`
+
+```json
+{
+  "githubConfig": {
+    "token": "ghp_...",
+    "repoUrl": "https://github.com/org/repo",
+    "assignee": "copilot",
+    "apiBaseUrl": "https://api.github.com"
+  },
+  "turnId": "optional — defaults to latest turn",
+  "title": "optional — auto-generated from AI analysis",
+  "body": "optional — auto-generated with log lines + full analysis",
+  "labels": ["bug", "fusion-agent"]
+}
+```
+
+Response:
+
+```json
+{
+  "issueNumber": 77,
+  "issueUrl": "https://github.com/org/repo/issues/77"
+}
+```
+
+The Copilot coding agent picks up the issue automatically because it is assigned to the `copilot` bot user. The GitHub token needs **`repo`** + **`issues:write`** scopes.
+
+#### GitHub Copilot agent — auto-assign via config
+
+Set `autoAssignCopilot: true` in `.fusion-agent.json` to have the live debugger file and assign an issue after **every** AI analysis without any manual action:
+
+```json
+{
+  "github": {
+    "token": "ghp_...",
+    "repoUrl": "https://github.com/org/repo",
+    "assignee": "copilot",
+    "autoAssignCopilot": true
+  }
+}
+```
+
+The issued URL is stored on the turn's `debuggerMeta.copilotIssueUrl` and exposed via the **🤖 Copilot Issue** chip in the Web UI.
+
+> **Important:** When `autoAssignCopilot` is `true`, the live debugger does **not** attempt to apply a git fix itself. It files the issue and hands off entirely to the Copilot coding agent. If you also want fusion-agent to apply a fix directly, leave `autoAssignCopilot` unset and use the **⚙ Apply Git Fix** button (or `git-fix` API) manually.
+
+---
+
+## GitHub Copilot Coding Agent integration (`GitHubClient`)
+
+````typescript
+import { GitHubClient } from "fusion-agent";
+
+const gh = new GitHubClient({
+  token: process.env.GITHUB_TOKEN!, // repo + issues:write scope
+  repoUrl: "https://github.com/org/my-service",
+  assignee: "copilot", // default — triggers the Copilot agent
+  apiBaseUrl: "https://api.github.com", // default
+});
+
+// Create an issue only
+const { issueNumber, issueUrl } = await gh.createIssue(
+  "[Live Debugger] OOM killer triggered on api-server",
+  "## Analysis\n...\n\n## Log Lines\n```\n...\n```",
+  ["bug", "live-debugger"],
+);
+
+// Assign an existing issue to the Copilot agent
+await gh.assignIssueToCopilot(issueNumber);
+
+// Convenience: create + assign in one call
+const result = await gh.createIssueForCopilot(
+  "[Live Debugger] OOM killer triggered",
+  "## Analysis\n...",
+  ["bug"],
+);
+console.log("Issue opened and assigned to Copilot:", result.issueUrl);
+````
 
 ---
 

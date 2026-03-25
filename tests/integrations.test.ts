@@ -4,7 +4,7 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { JiraClient } from '../src/integrations/jira';
-import { GitPatchApplier } from '../src/integrations/git';
+import { GitPatchApplier, GitHubClient } from '../src/integrations/git';
 
 const execFileAsync = promisify(execFile);
 
@@ -211,5 +211,141 @@ describe('DebuggerTurnMeta', () => {
     expect(json.matchedLogLines).toEqual(['ERROR: disk full']);
     expect(json.notificationSent).toBe(true);
     expect(json.jiraKey).toBe('OPS-42');
+  });
+});
+
+// ── GitHubClient — checkCopilotGuardrails ─────────────────────────────────────
+
+describe('GitHubClient — checkCopilotGuardrails', () => {
+  const makeClient = (guardrails: string[]) =>
+    new GitHubClient({
+      token: 'ghp_test',
+      repoUrl: 'https://github.com/test-org/test-repo',
+      guardrails,
+    });
+
+  it('returns null when no guardrails are configured', () => {
+    const client = makeClient([]);
+    expect(client.checkCopilotGuardrails('Some title', 'Some body', [])).toBeNull();
+  });
+
+  it('deny-keyword: returns violation when title contains the keyword', () => {
+    const client = makeClient(['deny-keyword:secret']);
+    const result = client.checkCopilotGuardrails('Contains secret data', 'body', []);
+    expect(result).not.toBeNull();
+    expect(result).toContain('denied keyword');
+    expect(result).toContain('secret');
+  });
+
+  it('deny-keyword: returns violation when body contains the keyword', () => {
+    const client = makeClient(['deny-keyword:password']);
+    const result = client.checkCopilotGuardrails('Clean title', 'The body mentions the password keyword', []);
+    expect(result).not.toBeNull();
+    expect(result).toContain('password');
+  });
+
+  it('deny-keyword: match is case-insensitive', () => {
+    const client = makeClient(['deny-keyword:secret']);
+    expect(client.checkCopilotGuardrails('This has SECRET in caps', 'body', [])).not.toBeNull();
+    expect(client.checkCopilotGuardrails('Title', 'Body with Secret word', [])).not.toBeNull();
+  });
+
+  it('deny-keyword: returns null when keyword is absent', () => {
+    const client = makeClient(['deny-keyword:secret']);
+    expect(client.checkCopilotGuardrails('Normal title', 'Normal body', [])).toBeNull();
+  });
+
+  it('require-label: returns violation when label is missing from the list', () => {
+    const client = makeClient(['require-label:live-debugger']);
+    const result = client.checkCopilotGuardrails('title', 'body', ['some-other-label']);
+    expect(result).not.toBeNull();
+    expect(result).toContain('live-debugger');
+  });
+
+  it('require-label: returns null when required label is present', () => {
+    const client = makeClient(['require-label:live-debugger']);
+    expect(client.checkCopilotGuardrails('title', 'body', ['live-debugger', 'fusion-agent'])).toBeNull();
+  });
+
+  it('require-label: comparison is case-insensitive', () => {
+    const client = makeClient(['require-label:Live-Debugger']);
+    expect(client.checkCopilotGuardrails('title', 'body', ['live-debugger'])).toBeNull();
+  });
+
+  it('require-label: returns null when labels list is empty and no rule', () => {
+    const client = makeClient([]);
+    expect(client.checkCopilotGuardrails('title', 'body', [])).toBeNull();
+  });
+
+  it('max-title-length: returns violation when title exceeds max', () => {
+    const client = makeClient(['max-title-length:20']);
+    const result = client.checkCopilotGuardrails('A'.repeat(21), 'body', []);
+    expect(result).not.toBeNull();
+    expect(result).toContain('21 characters');
+    expect(result).toContain('max 20');
+  });
+
+  it('max-title-length: returns null when title is exactly at the limit', () => {
+    const client = makeClient(['max-title-length:10']);
+    expect(client.checkCopilotGuardrails('A'.repeat(10), 'body', [])).toBeNull();
+  });
+
+  it('max-body-length: returns violation when body exceeds max', () => {
+    const client = makeClient(['max-body-length:50']);
+    const result = client.checkCopilotGuardrails('title', 'B'.repeat(51), []);
+    expect(result).not.toBeNull();
+    expect(result).toContain('51 characters');
+  });
+
+  it('max-body-length: returns null when body is within the limit', () => {
+    const client = makeClient(['max-body-length:100']);
+    expect(client.checkCopilotGuardrails('title', 'B'.repeat(100), [])).toBeNull();
+  });
+
+  it('unrecognised rules are silently ignored and do not block', () => {
+    const client = makeClient(['unknown-rule:value', 'another-unknown:xyz']);
+    expect(client.checkCopilotGuardrails('title', 'body', [])).toBeNull();
+  });
+
+  it('returns the first violation when multiple rules are configured', () => {
+    const client = makeClient(['deny-keyword:secret', 'require-label:required']);
+    // Both rules fire — expect the deny-keyword one (first in list) to be returned
+    const result = client.checkCopilotGuardrails('Has secret inside', 'body', []);
+    expect(result).not.toBeNull();
+    expect(result).toContain('deny-keyword');
+  });
+
+  it('checks all rules and returns null only when every rule passes', () => {
+    const client = makeClient([
+      'deny-keyword:secret',
+      'require-label:live-debugger',
+      'max-title-length:100',
+      'max-body-length:500',
+    ]);
+    expect(
+      client.checkCopilotGuardrails('Normal title', 'Normal body', ['live-debugger'])
+    ).toBeNull();
+  });
+});
+
+// ── GitHubClient — constructor validation ─────────────────────────────────────
+
+describe('GitHubClient — constructor validation', () => {
+  it('throws when token is empty', () => {
+    expect(
+      () => new GitHubClient({ token: '', repoUrl: 'https://github.com/test/repo' })
+    ).toThrow(/token/);
+  });
+
+  it('throws when repoUrl is empty', () => {
+    expect(
+      () => new GitHubClient({ token: 'ghp_test', repoUrl: '' })
+    ).toThrow(/repoUrl/);
+  });
+
+  it('constructs successfully with valid token and repoUrl', () => {
+    expect(
+      () => new GitHubClient({ token: 'ghp_test', repoUrl: 'https://github.com/org/repo' })
+    ).not.toThrow();
   });
 });

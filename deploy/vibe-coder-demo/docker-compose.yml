@@ -1,0 +1,23 @@
+services:
+  fusion-agent-ui:
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile
+    image: fusion-agent:latest
+    container_name: fusion-agent-vibe-demo
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+    volumes:
+      - ${HOME}/.fusion-agent:/root/.fusion-agent
+    entrypoint:
+      - "node"
+      - "dist/cli.js"
+      - "ui"
+    command:
+      - "--port"
+      - "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

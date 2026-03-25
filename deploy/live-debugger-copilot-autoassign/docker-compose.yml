@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Live Debugger — Copilot Auto-Assign  •  docker-compose.yml
+#
+# Services
+# ────────
+#   dummy-server          Node.js server that intentionally emits errors every
+#                         5 s, giving the live debugger realistic logs to analyse.
+#
+#   copilot-autoassign    fusion-agent live debugger configured to auto-assign
+#                         every analysis to the GitHub Copilot coding agent.
+#                         Includes Jira ticketing, Slack/webhook notifications,
+#                         and Copilot issue guardrails.
+#
+# Quick start
+# ──────────
+#   cp .env.example .env        # fill in real secrets
+#   docker compose up --build
+#
+# Web UI:   http://localhost:3000
+# Dummy:    http://localhost:8080/health
+#           http://localhost:8080/crash    (trigger an extra error batch)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Dummy error-emitting server ─────────────────────────────────────────────
+  dummy-server:
+    build:
+      context: ../live-debugger-dummy-server
+      dockerfile: Dockerfile
+    container_name: fusion-live-debugger-dummy
+    environment:
+      PORT: "8080"
+      # How often (ms) the dummy server fires a synthetic error batch
+      ERROR_INTERVAL_MS: "${ERROR_INTERVAL_MS:-5000}"
+      DUMMY_DB_HOST: "127.0.0.1"
+      DUMMY_DB_PORT: "5432"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Copilot auto-assign live debugger ───────────────────────────────────────
+  copilot-autoassign:
+    build:
+      # Build context is the repository root so the full src/ tree is available
+      context: ../..
+      dockerfile: deploy/live-debugger-copilot-autoassign/Dockerfile
+    container_name: fusion-copilot-autoassign
+    depends_on:
+      dummy-server:
+        condition: service_healthy
+
+    environment:
+      # ── AI provider ──────────────────────────────────────────────────────
+      AI_PROVIDER: "${AI_PROVIDER:-openai}"
+      AI_MODEL: "${AI_MODEL:-gpt-4o}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+
+      # ── GitHub Copilot integration ────────────────────────────────────────
+      # Token needs: repo + issues:write
+      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
+      GITHUB_REPO: "${GITHUB_REPO:-}"        # https://github.com/org/my-service
+
+      # ── Docker container to watch ────────────────────────────────────────
+      # Must be accessible from inside this container via the Docker socket
+      DOCKER_CONTAINER: "fusion-live-debugger-dummy"
+
+      # ── Web UI ───────────────────────────────────────────────────────────
+      WEB_PORT: "3000"
+
+      # ── Jira (optional — leave blank to disable) ─────────────────────────
+      JIRA_BASE_URL: "${JIRA_BASE_URL:-}"
+      JIRA_EMAIL: "${JIRA_EMAIL:-}"
+      JIRA_API_TOKEN: "${JIRA_API_TOKEN:-}"
+      JIRA_PROJECT_KEY: "${JIRA_PROJECT_KEY:-OPS}"
+
+      # ── Notifications (optional) ─────────────────────────────────────────
+      # Sent when a Copilot guardrail blocks auto-assign, or retries are exhausted
+      SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
+      NOTIFY_WEBHOOK_URL: "${NOTIFY_WEBHOOK_URL:-}"
+
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+    volumes:
+      # Persist session files so they survive container restarts
+      - fusion-agent-sessions:/root/.fusion-agent
+      # Give the debugger access to the Docker daemon so it can tail the
+      # dummy-server container logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    restart: unless-stopped
+
+# ── Named volumes ──────────────────────────────────────────────────────────────
+volumes:
+  fusion-agent-sessions:

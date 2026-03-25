@@ -1,0 +1,15 @@
+{
+    "provider": "openai",
+    "model": "gpt-4o",
+    "port": 3000,
+    "guardrails": [
+        {
+            "type": "custom",
+            "value": "Always propose fixes in TypeScript"
+        },
+        {
+            "type": "custom",
+            "value": "Include the root cause in every analysis"
+        }
+    ]
+}

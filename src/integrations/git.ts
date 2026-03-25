@@ -291,3 +291,165 @@ export class GitPatchApplier {
     return match ? match[1] : null;
   }
 }
+
+// ── GitHub Copilot Agent integration ────────────────────────────────────────
+
+export interface GitHubConfig {
+  /** Personal access token with repo + issues:write scope */
+  token: string;
+  /** e.g. https://api.github.com (default) */
+  apiBaseUrl?: string;
+  /** https://github.com/owner/repo */
+  repoUrl: string;
+  /** Assignee to trigger the Copilot coding agent (default: 'copilot') */
+  assignee?: string;
+  /** Automatically file and assign a GitHub issue after each live debugger analysis */
+  autoAssignCopilot?: boolean;
+  /**
+   * Guardrails that gate Copilot issue creation.  Identical format to the
+   * Git integration guardrails but applied to issue content:
+   *
+   *   deny-keyword:<word>     — block if title **or** body contains the word (case-insensitive)
+   *   require-label:<label>   — block if the label is not present in the labels list
+   *   max-title-length:<n>    — block if the issue title exceeds N characters
+   *   max-body-length:<n>     — block if the issue body exceeds N characters
+   */
+  guardrails?: string[];
+}
+
+export interface GitHubIssueResult {
+  issueNumber: number;
+  issueUrl: string;
+}
+
+/**
+ * Lightweight GitHub REST API client for creating issues and triggering the
+ * GitHub Copilot coding agent via assignee assignment.
+ */
+export class GitHubClient {
+  private readonly config: GitHubConfig;
+
+  constructor(config: GitHubConfig) {
+    if (!config.token) throw new Error('GitHubClient: token is required');
+    if (!config.repoUrl) throw new Error('GitHubClient: repoUrl is required');
+    this.config = config;
+  }
+
+  /** Create a GitHub issue and return its number + URL. */
+  async createIssue(title: string, body: string, labels?: string[]): Promise<GitHubIssueResult> {
+    const repoPath = this.parseRepoPath();
+    if (!repoPath) throw new Error(`Could not determine owner/repo from repoUrl: ${this.config.repoUrl}`);
+    const payload: Record<string, unknown> = { title, body };
+    if (labels && labels.length > 0) payload.labels = labels;
+    const data = await this.apiRequest<{ number: number; html_url: string }>(
+      'POST', `/repos/${repoPath}/issues`, payload
+    );
+    return { issueNumber: data.number, issueUrl: data.html_url };
+  }
+
+  /** Assign an existing issue to the Copilot bot (or any configured assignee). */
+  async assignIssueToCopilot(issueNumber: number): Promise<void> {
+    const repoPath = this.parseRepoPath();
+    if (!repoPath) throw new Error(`Could not determine owner/repo from repoUrl: ${this.config.repoUrl}`);
+    const assignee = this.config.assignee ?? 'copilot';
+    await this.apiRequest('POST', `/repos/${repoPath}/issues/${issueNumber}/assignees`, {
+      assignees: [assignee],
+    });
+  }
+
+  /**
+   * Evaluate the configured guardrails against the proposed issue content.
+   * Returns a human-readable violation string when a rule is broken, or
+   * `null` when all rules pass.
+   */
+  checkCopilotGuardrails(title: string, body: string, labels: string[]): string | null {
+    const rules = this.config.guardrails ?? [];
+    for (const rule of rules) {
+      if (rule.startsWith('deny-keyword:')) {
+        const kw = rule.slice('deny-keyword:'.length).toLowerCase();
+        if (title.toLowerCase().includes(kw) || body.toLowerCase().includes(kw)) {
+          return `Issue content contains denied keyword "${kw}" (rule: ${rule})`;
+        }
+      }
+      if (rule.startsWith('require-label:')) {
+        const required = rule.slice('require-label:'.length).trim();
+        if (!labels.map((l) => l.trim().toLowerCase()).includes(required.toLowerCase())) {
+          return `Required label "${required}" is missing from the issue labels (rule: ${rule})`;
+        }
+      }
+      if (rule.startsWith('max-title-length:')) {
+        const max = parseInt(rule.slice('max-title-length:'.length), 10);
+        if (!isNaN(max) && title.length > max) {
+          return `Issue title is ${title.length} characters, exceeding max ${max} (rule: ${rule})`;
+        }
+      }
+      if (rule.startsWith('max-body-length:')) {
+        const max = parseInt(rule.slice('max-body-length:'.length), 10);
+        if (!isNaN(max) && body.length > max) {
+          return `Issue body is ${body.length} characters, exceeding max ${max} (rule: ${rule})`;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Convenience: create an issue and immediately assign it to the Copilot
+   * coding agent so it picks up the work autonomously.
+   */
+  async createIssueForCopilot(title: string, body: string, labels?: string[]): Promise<GitHubIssueResult> {
+    const result = await this.createIssue(title, body, labels);
+    await this.assignIssueToCopilot(result.issueNumber);
+    return result;
+  }
+
+  private parseRepoPath(): string | null {
+    const match = this.config.repoUrl.match(/github\.com[/:]([\w.-]+\/[\w.-]+?)(?:\.git)?$/);
+    return match ? match[1] : null;
+  }
+
+  private apiRequest<T>(method: string, apiPath: string, payload?: unknown): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const apiBase = new URL(this.config.apiBaseUrl ?? 'https://api.github.com');
+      const isHttps = apiBase.protocol === 'https:';
+      const transport = isHttps ? https : http;
+      const body = payload ? JSON.stringify(payload) : undefined;
+      const req = transport.request(
+        {
+          hostname: apiBase.hostname,
+          port: apiBase.port ? parseInt(apiBase.port, 10) : isHttps ? 443 : 80,
+          path: apiPath,
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `token ${this.config.token}`,
+            'User-Agent': 'fusion-agent',
+            ...(body ? { 'Content-Length': String(Buffer.byteLength(body)) } : {}),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(data) as T & { message?: string };
+              if (res.statusCode && res.statusCode >= 400) {
+                reject(new Error(
+                  `GitHub API error ${res.statusCode}: ${(parsed as Record<string, unknown>).message ?? data}`
+                ));
+              } else {
+                resolve(parsed);
+              }
+            } catch {
+              reject(new Error(`GitHub API response parse error: ${data}`));
+            }
+          });
+        }
+      );
+      req.on('error', reject);
+      if (body) req.write(body);
+      req.end();
+    });
+  }
+}
