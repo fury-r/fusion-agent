@@ -1,6 +1,6 @@
 # fusion-agent
 
-> ⚠️ **Package renamed:** The previous npm package `polyai-agent` has been deprecated and replaced by **`fusion-agent`**.  
+> ⚠️ **Package renamed:** The previous npm package has been deprecated and replaced by **`fusion-agent`**.  
 > Please install the new package: `npm install -g fusion-agent`
 
 An AI-powered **vibe coder**, **live service debugger**, **autonomous agent**, and **session manager** — deployable as a CLI or importable as a TypeScript library.
