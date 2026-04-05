@@ -4,6 +4,7 @@ import { debugger_ } from './debugger';
 import { codeReview } from './code-review';
 import { docWriter, testWriter, refactor, securityAudit } from './more-speckits';
 import { clusterDebugger } from './cluster-debugger';
+import { loadSkill } from '../skills/registry';
 
 export const SPECKITS: Record<string, Speckit> = {
   'vibe-coder': vibeCoder,
@@ -17,7 +18,17 @@ export const SPECKITS: Record<string, Speckit> = {
 };
 
 export function getSpeckit(name: string): Speckit | undefined {
-  return SPECKITS[name];
+  if (SPECKITS[name]) return SPECKITS[name];
+  // Fall back to skills registry: treat a skill's SKILL.md as a speckit
+  const skill = loadSkill(name);
+  if (skill) {
+    return {
+      name: skill.name,
+      description: `Skill loaded from ~/.fusion-agent/skills/${skill.name}/SKILL.md`,
+      systemPrompt: skill.content,
+    };
+  }
+  return undefined;
 }
 
 export function listSpeckits(): Speckit[] {

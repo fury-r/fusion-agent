@@ -35,6 +35,33 @@ export interface AutonomousConfig {
    * considered duplicates. (default: 0.85)
    */
   loopSimilarityThreshold?: number;
+  /**
+   * Names of skills to load from ~/.fusion-agent/skills/<name>/SKILL.md.
+   * Their content is prepended to the plan prompt as additional context.
+   */
+  skills?: string[];
+  /**
+   * Enable browser control. When true, the agent can emit <browser>…</browser>
+   * blocks in its responses to navigate pages, take snapshots, click, etc.
+   */
+  browserEnabled?: boolean;
+  /**
+   * Absolute path to the Chrome/Chromium executable.
+   * Falls back to the CHROME_PATH environment variable, then common OS paths.
+   */
+  browserExecutablePath?: string;
+}
+
+/** A browser action block extracted from an AI response. */
+export interface BrowserBlock {
+  /** Raw lines of instructions (e.g. ["navigate https://…", "snapshot"]) */
+  instructions: string[];
+}
+
+/** A cross-agent message block extracted from an AI response. */
+export interface AgentMessageBlock {
+  toSessionId: string;
+  message: string;
 }
 
 export interface VibeCoderStep {

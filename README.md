@@ -22,6 +22,11 @@ Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming respons
 | 🎫 Jira Integration                 | Create Jira tickets directly from Live Debugger analysis events, with per-integration guardrails                                               |
 | ⚙ Git Integration                   | Apply AI-proposed code fixes to a git repository, push, and open a pull request, with per-integration guardrails                               |
 | 📦 Speckits                         | 7 prebuilt agent configurations: vibe-coder, debugger, code-review, doc-writer, test-writer, refactor, security-audit                          |
+| 🧩 Skills Registry                  | Install domain-expert SKILL.md files; the autonomous agent loads and applies them automatically at runtime                                     |
+| 🌐 Browser Control                  | Autonomous agent can navigate pages, take snapshots, click, type, and evaluate JS via `<browser>` response blocks (requires Chrome/Chromium)   |
+| 🤝 Agent-to-Agent Routing           | Multiple autonomous agents running in the same process can exchange messages via `<agent>` response blocks and an in-memory AgentBus           |
+| 🔔 Webhooks                         | Register HTTP webhooks that trigger an autonomous agent run on demand; tokens are SHA-256 hashed and validated with timing-safe comparison      |
+| ⏰ Cron Scheduler                   | Schedule autonomous agent runs with standard cron expressions; jobs persist across restarts via `~/.fusion-agent/cron.json`                    |
 | 🛡 Guardrails                       | Per-session rules the AI must follow (allowed paths, denied operations, style rules, custom rules)                                             |
 | 💾 Sessions                         | Named, persistent sessions with full conversation history, file-change tracking, and rich debugger metadata                                    |
 | 🌐 Web UI                           | Built-in web dashboard — session viewer, **interactive Vibe Coder chat**, **Autonomous Mode control panel**, and **Live Debugger detail view** |
@@ -45,6 +50,9 @@ flowchart TD
     CLI --> SessionCmd["<code>session</code>\nSession Manager"]
     CLI --> Speckit["<code>speckit</code>\nSpeckit Browser"]
     CLI --> Config["<code>config</code>\nConfiguration"]
+    CLI --> SkillCmd["<code>skill</code>\nSkills Manager"]
+    CLI --> WebhookCmd["<code>webhook</code>\nWebhook Manager"]
+    CLI --> CronCmd["<code>cron</code>\nCron Manager"]
 
     Chat --> SM[Session Manager]
     LibAPI --> SM
@@ -186,6 +194,14 @@ sequenceDiagram
         AI-->>VA: Code blocks + progress
         VA->>FS: Apply file changes
         VA->>LD: Check similarity to recent responses
+        opt browserEnabled
+            VA->>Browser: Execute <browser> blocks
+            Browser-->>VA: Page snapshots / results
+        end
+        opt agent blocks present
+            VA->>AgentBus: Route <agent> messages
+            AgentBus-->>VA: Agent replies
+        end
         alt Loop detected OR stuck (N steps no changes)
             VA->>AI: "Summarise your confusion"
             AI-->>VA: Confusion summary
@@ -261,12 +277,16 @@ ai-agent ui
 Usage: ai-agent [options] [command]
 
 Commands:
-  chat [options]     Start an interactive chat session (vibe coder mode)
-  speckit [name]     List or run a prebuilt speckit
-  debug [options]    Attach to a live service and start AI-assisted debugging
-  session [options]  Manage sessions (list, delete, export)
-  ui [options]       Launch the Web UI
-  config [options]   Configure default settings
+  chat [options]          Start an interactive chat session (vibe coder mode)
+  speckit [name]          List or run a prebuilt speckit
+  debug [options]         Attach to a live service and start AI-assisted debugging
+  session [options]       Manage sessions (list, delete, export)
+  ui [options]            Launch the Web UI
+  config [options]        Configure default settings
+  skill [subcommand]      Manage installed skills (list | show <name> | fetch <name> <url>)
+  webhook <action>        Manage autonomous agent webhooks (list | add | remove <id>)
+  cron <action>           Manage scheduled autonomous runs (list | add | remove | enable | disable)
+  cluster-debug [options] Monitor cluster services and auto-debug failures
 
 Options:
   -V, --version      output the version number
@@ -390,6 +410,52 @@ ai-agent config --provider openai   # Set default provider
 ai-agent config --model gpt-4o      # Set default model
 ai-agent config --port 3000         # Set default Web UI port
 ```
+
+### `ai-agent skill`
+
+```bash
+ai-agent skill list                              # List installed skills
+ai-agent skill show react-expert                 # Print a skill's content
+ai-agent skill fetch react-expert https://…/SKILL.md  # Fetch and cache a remote skill
+```
+
+Skills live in `~/.fusion-agent/skills/<name>/SKILL.md`. Install any number of them and reference them by name in the autonomous agent via `skills: ['react-expert']`.
+
+### `ai-agent webhook`
+
+```bash
+ai-agent webhook list                            # List registered webhooks
+ai-agent webhook add --name deploy-hook --session my-project --requirements "Run smoke tests"
+# → prints the webhook ID and a one-time secret token
+
+ai-agent webhook remove <id>                     # Delete a webhook by ID
+```
+
+Trigger a registered webhook from any HTTP client:
+
+```bash
+curl -X POST https://your-server/api/webhooks/<id>/trigger \
+  -H "X-Webhook-Token: <token>"
+```
+
+The server starts an autonomous agent run for the configured session and requirements (fire-and-forget, responds with `202 Accepted`).
+
+### `ai-agent cron`
+
+```bash
+ai-agent cron list                               # List all scheduled jobs
+ai-agent cron add \
+  --name morning-review \
+  --schedule "0 9 * * 1-5" \
+  --session my-project \
+  --requirements "Review open PRs and summarise overnight CI failures"
+
+ai-agent cron remove <id>                        # Remove a job
+ai-agent cron disable <id>                       # Temporarily pause a job
+ai-agent cron enable <id>                        # Resume a paused job
+```
+
+Schedules use standard cron syntax (powered by [node-cron](https://github.com/node-cron/node-cron)). Jobs are persisted to `~/.fusion-agent/cron.json` and restored automatically when the web server starts.
 
 ---
 
@@ -899,6 +965,13 @@ const autoAgent = new AutonomousVibeAgent(session, {
   loopWindowSize: 4, // compare against last 4 responses
   loopSimilarityThreshold: 0.85, // 85 % word-level Jaccard similarity = loop
   stuckThreshold: 3, // 3 consecutive steps with no file changes = stuck
+
+  // Skills — content is prepended to the plan prompt
+  skills: ["react-expert", "a11y-guidelines"],
+
+  // Browser control (requires Chrome/Chromium)
+  browserEnabled: true,
+  browserExecutablePath: "/usr/bin/google-chrome", // or set CHROME_PATH env
 });
 
 autoAgent.on("status", (s) => console.log("Status:", s));
@@ -926,6 +999,173 @@ autoAgent.on("error", (err) => console.error("Agent error:", err.message));
 await autoAgent.run();
 ```
 
+### Skills Registry API
+
+Install a skill from any URL and reference it by name:
+
+```typescript
+import { loadRemoteSkill, loadSkillsContent, listSkills } from "fusion-agent/skills";
+
+// Fetch and cache a skill from a remote URL (force=true overwrites the cached copy)
+const skill = await loadRemoteSkill("react-expert", "https://example.com/skills/react/SKILL.md");
+console.log(skill.name, skill.content);
+
+// List all locally installed skills
+console.log(listSkills()); // ['react-expert', 'rust-guru', ...]
+
+// Load concatenated content from multiple skills for prompt injection
+const context = loadSkillsContent(["react-expert", "rust-guru"]);
+```
+
+Reference skills by name in `AutonomousConfig` — their content is prepended to the plan prompt automatically:
+
+```typescript
+const autoAgent = new AutonomousVibeAgent(session, {
+  requirementsFile: "./requirements.md",
+  skills: ["react-expert", "a11y-guidelines"], // ← loaded at runtime
+});
+```
+
+### Browser Control API
+
+Enable the autonomous agent to control a real browser (requires Chrome or Chromium):
+
+```typescript
+const autoAgent = new AutonomousVibeAgent(session, {
+  requirementsFile: "./requirements.md",
+  browserEnabled: true,
+  // Optional: override the Chrome path (defaults to CHROME_PATH env, then common OS paths)
+  browserExecutablePath: "/usr/bin/google-chrome",
+});
+```
+
+When `browserEnabled` is `true`, the agent can include `<browser>…</browser>` blocks in its responses:
+
+```
+<browser>
+navigate https://example.com/login
+snapshot
+click #username
+type #username admin@example.com
+click #password
+type #password secret
+click [type=submit]
+snapshot
+</browser>
+```
+
+Supported instructions:
+
+| Instruction                     | Description                                     |
+| ------------------------------- | ----------------------------------------------- |
+| `navigate <url>`                | Navigate to a URL (waits for `networkidle2`)    |
+| `snapshot`                      | Capture page URL, title, and visible text       |
+| `click <selector>`              | Click a CSS selector                            |
+| `type <selector> <text>`        | Type into an input field                        |
+| `eval <js expression>`          | Evaluate a JS expression and return the result  |
+
+Browser results are automatically injected back into the agent's conversation as context for the next step. Set `CHROME_PATH` to point to your Chrome/Chromium binary if it is not found automatically.
+
+### Agent-to-Agent Routing API
+
+Multiple autonomous agents can exchange messages while running in the same Node.js process via the in-memory `AgentBus`:
+
+```typescript
+import { agentBus } from "fusion-agent/agent-bus";
+
+// List all currently running agents
+console.log(agentBus.list());
+// [{ sessionId: 'abc', sessionName: 'frontend-agent', registeredAt: '...' }]
+
+// Send a message from one agent to another and await the reply
+const reply = await agentBus.send("my-session-id", "abc", "Please review my auth module.");
+console.log(reply);
+
+// Subscribe to bus events
+agentBus.on("agent:registered", (info) => console.log("New agent:", info.sessionName));
+agentBus.on("agent:message",    (ev)   => console.log(ev.fromSessionId, "→", ev.toSessionId));
+```
+
+Autonomous agents register themselves automatically on `run()` and unregister when they stop. The AI can also route messages using `<agent>` response blocks:
+
+```
+<agent>send to:<sessionId> message:Please review the authentication module</agent>
+```
+
+> **Note:** The AgentBus is in-memory only — all communicating agents must be running in the same Node.js process.
+
+### Webhooks API
+
+Register a webhook that triggers an autonomous agent run when called over HTTP:
+
+```typescript
+import { createWebhook, listWebhooks, deleteWebhook, validateWebhookToken } from "fusion-agent/webhook-store";
+
+// Register a new webhook — the token is shown once and never stored in plaintext
+const { id, token } = createWebhook("deploy-hook", "my-project", {
+  requirementsContent: "Run smoke tests and summarise results",
+});
+console.log("Webhook ID:", id);
+console.log("Token (save this):", token);
+
+// List (tokens redacted)
+console.log(listWebhooks());
+
+// Validate an incoming request
+const config = validateWebhookToken(id, incomingToken);
+if (!config) throw new Error("Invalid token");
+
+// Delete
+deleteWebhook(id);
+```
+
+Trigger via the REST API (see [REST API Reference](#rest-api-reference-web-ui-backend)):
+
+```bash
+curl -X POST http://localhost:3000/api/webhooks/<id>/trigger \
+  -H "X-Webhook-Token: <token>"
+# → 202 Accepted, autonomous run starts in the background
+```
+
+### Cron Scheduler API
+
+Use `CronManager` programmatically to schedule recurring autonomous runs:
+
+```typescript
+import { CronManager } from "fusion-agent/cron";
+import { SessionManager } from "fusion-agent";
+
+const sessionManager = new SessionManager("~/.fusion-agent/sessions");
+const cron = new CronManager(sessionManager, {
+  apiKey: process.env.OPENAI_API_KEY,
+  provider: "openai",
+  model: "gpt-4o",
+});
+
+// Restore previously saved jobs (call once at startup)
+cron.restoreJobs();
+
+// Add a new job
+const job = cron.addJob(
+  "morning-review",           // name
+  "0 9 * * 1-5",            // cron schedule (Mon–Fri at 9 AM)
+  "my-project",              // session name prefix
+  {
+    requirementsContent: "Review open PRs and summarise overnight CI failures",
+    skills: ["code-review"],
+  }
+);
+
+// Toggle / remove
+cron.setEnabled(job.id, false);
+cron.removeJob(job.id);
+
+// Graceful shutdown
+process.on("SIGINT", () => cron.stopAll());
+```
+
+Jobs are persisted to `~/.fusion-agent/cron.json` and survive process restarts via `restoreJobs()`.
+
 ### Web Server API
 
 ```typescript
@@ -942,6 +1182,282 @@ const server = createWebServer({
 });
 await server.start();
 // server.io is a Socket.IO Server instance — pass to LiveDebugger for real-time pushes
+```
+
+---
+
+## Use Cases — New Features
+
+### Skills Registry
+
+#### UC-1: Domain expert injected into every run
+You maintain a `typescript-standards.md` playbook. Install it once, reference it in every project:
+
+```bash
+ai-agent skill fetch typescript-standards https://internal.wiki/skills/typescript.md
+```
+```typescript
+new AutonomousVibeAgent(session, {
+  requirementsContent: 'Refactor the payments module',
+  skills: ['typescript-standards'],   // content prepended to plan prompt automatically
+});
+```
+The agent follows your playbook without you pasting it into every prompt.
+
+---
+
+#### UC-2: Stack-specific scaffolding
+Install a `nextjs` skill that knows your folder conventions, and a `testing` skill with your Jest setup. Run them together for any new feature:
+
+```bash
+ai-agent skill fetch nextjs  https://example.com/skills/nextjs.md
+ai-agent skill fetch testing https://example.com/skills/testing.md
+
+ai-agent chat --speckit vibe-coder
+# /context
+# "Add a product listing page with server-side rendering and tests"
+# (skills are loaded via AutonomousConfig.skills in the autonomous tab of the Web UI)
+```
+
+---
+
+#### UC-3: Reusable security checklist
+A `owasp-checklist` skill contains your company's security review criteria. Attach it to any code-review run so the agent never misses an injection point or missing auth check:
+
+```bash
+ai-agent skill fetch owasp-checklist https://internal.wiki/skills/owasp.md
+ai-agent chat --speckit security-audit
+```
+
+---
+
+### Browser Control
+
+#### UC-4: Scrape live data and write a report
+The agent navigates to a page, reads it, and writes the output as a file — no manual copy-paste:
+
+```
+requirementsContent: |
+  Go to https://status.github.com, snapshot the current incident list,
+  then create docs/github-status-report.md with a summary table.
+browserEnabled: true
+```
+The AI emits:
+```
+<browser>
+navigate https://status.github.com
+snapshot
+</browser>
+```
+The snapshot text is injected back as context. The agent then writes the file.
+
+---
+
+#### UC-5: End-to-end login and form test
+Let the agent drive a real browser to verify your staging environment works after deployment:
+
+```
+requirementsContent: |
+  Visit https://staging.myapp.com/login.
+  Log in with test@example.com / password123.
+  Navigate to /dashboard and confirm the "Welcome" heading appears.
+  Write the result to tests/e2e/login-result.txt.
+browserEnabled: true
+```
+
+---
+
+#### UC-6: Monitor a competitor's pricing page
+Schedule a weekly cron job that snapshots a pricing page and diffs the result against last week:
+
+```bash
+ai-agent cron add \
+  --name "weekly-pricing-check" \
+  --schedule "0 8 * * 1" \
+  --session "market-intel" \
+  --requirements "Go to https://competitor.com/pricing, snapshot the page, compare against data/last-pricing.txt and write a diff to data/pricing-changes.md"
+```
+Set `browserEnabled: true` in the `autonomousConfig` via the Web UI or REST API.
+
+---
+
+### Agent-to-Agent Bus
+
+#### UC-7: Coordinator → specialist pattern
+A coordinator agent breaks a large feature into back-end and front-end work and routes each piece to a specialist:
+
+```
+requirementsContent: |
+  Implement the user profile feature.
+  When you have defined the API contract, send it to the backend agent:
+  <agent>send to:BACKEND_SESSION_ID message:Implement these endpoints: [paste contract]</agent>
+  Then send the UI spec to the frontend agent:
+  <agent>send to:FRONTEND_SESSION_ID message:Build the profile page using this API: [paste spec]</agent>
+  Collect both replies and write a final integration summary.
+```
+
+---
+
+#### UC-8: Automated code review gate
+After a vibe-coder agent writes code, it routes the result to a dedicated security reviewer before marking itself complete:
+
+```
+requirementsContent: |
+  Build the JWT authentication middleware in src/middleware/auth.ts.
+  When done, ask the security agent to review it:
+  <agent>send to:SECURITY_SESSION_ID message:Review src/middleware/auth.ts for OWASP Top 10 issues. Reply with a list of findings.</agent>
+  Apply any Critical or High findings before emitting REQUIREMENTS_COMPLETE.
+```
+
+---
+
+#### UC-9: Progress monitoring from application code
+Query any running agent mid-task without interrupting it:
+
+```typescript
+import { agentBus } from './src/agent-bus';
+
+// List who is currently running
+const agents = agentBus.list();
+// [{ sessionId: 'abc', sessionName: 'backend-agent', registeredAt: '...' }]
+
+// Ask for a status update
+const status = await agentBus.send('monitor', agents[0].sessionId,
+  'List the files you have written so far and what remains.');
+console.log(status);
+```
+
+---
+
+### Webhooks
+
+#### UC-10: Trigger a fix run from GitHub Actions on test failure
+Register the webhook once, store the token as a GitHub secret, and fire it whenever CI fails:
+
+```bash
+# One-time setup
+ai-agent webhook add \
+  --name "ci-fix-on-failure" \
+  --session "my-project" \
+  --requirements "The CI pipeline just failed. Investigate the error, fix the root cause, and output the changed files."
+# → saves ID and token
+```
+
+```yaml
+# .github/workflows/ci.yml
+- name: Trigger fusion-agent fix
+  if: failure()
+  run: |
+    curl -X POST ${{ secrets.FUSION_AGENT_URL }}/api/webhooks/${{ secrets.WEBHOOK_ID }}/trigger \
+      -H "X-Webhook-Token: ${{ secrets.WEBHOOK_TOKEN }}"
+```
+The server responds immediately with `202 Accepted`. A new autonomous session starts in the background and the run appears in the Web UI.
+
+---
+
+#### UC-11: On-demand doc generation from a Slack bot
+A Slack slash command hits your webhook to regenerate API docs whenever someone types `/gen-docs`:
+
+```bash
+ai-agent webhook add \
+  --name "regen-docs" \
+  --session "docs-project" \
+  --requirements "Regenerate OpenAPI docs from src/routes/**/*.ts and write to docs/api.md"
+```
+Your Slack bot backend:
+```typescript
+app.post('/slack/gen-docs', (req, res) => {
+  res.json({ text: 'Regenerating docs…' }); // immediate Slack ACK
+  fetch(`http://fusion-agent:3000/api/webhooks/${WEBHOOK_ID}/trigger`, {
+    method: 'POST',
+    headers: { 'X-Webhook-Token': WEBHOOK_TOKEN },
+  });
+});
+```
+
+---
+
+#### UC-12: Deploy hook — post-deploy verification
+Fire after every production deploy to verify key flows still work:
+
+```bash
+ai-agent webhook add \
+  --name "post-deploy-check" \
+  --session "prod-verifier" \
+  --requirements "Run the smoke-test suite in tests/smoke/, report any failures in docs/deploy-check.md"
+
+# From your deploy script:
+# curl -X POST .../api/webhooks/<id>/trigger -H "X-Webhook-Token: <token>"
+```
+
+---
+
+### Cron Scheduler
+
+#### UC-13: Daily PR review digest
+Every weekday morning, summarise open pull requests and write a digest file:
+
+```bash
+ai-agent cron add \
+  --name "daily-pr-digest" \
+  --schedule "0 8 * * 1-5" \
+  --session "pr-bot" \
+  --requirements "List all open PRs in the repo, summarise each one in one sentence, flag any that are > 7 days old, and write the result to docs/pr-digest.md"
+```
+
+---
+
+#### UC-14: Nightly security scan
+Run an OWASP audit every night at 2 AM and write a report. Uses the `security-audit` speckit and the `owasp-checklist` skill:
+
+```bash
+ai-agent cron add \
+  --name "nightly-security-scan" \
+  --schedule "0 2 * * *" \
+  --session "security-bot" \
+  --requirements "Scan all TypeScript files in src/ for OWASP Top 10 vulnerabilities. Do not modify any files. Write findings to docs/security-report.md with severity ratings."
+```
+
+Programmatically with skill attachment:
+```typescript
+cron.addJob('nightly-security-scan', '0 2 * * *', 'security-bot', {
+  requirementsContent: 'Scan src/ for OWASP issues. Write findings to docs/security-report.md.',
+  skills: ['owasp-checklist'],
+  rules: [{ id: 'no-write', description: 'Do not modify source files' }],
+  timeLimitSeconds: 600,
+});
+```
+
+---
+
+#### UC-15: Weekly dependency audit
+Every Monday, check for outdated or vulnerable packages and open a ticket:
+
+```bash
+ai-agent cron add \
+  --name "weekly-dep-audit" \
+  --schedule "0 9 * * 1" \
+  --session "dep-bot" \
+  --requirements "Run npm audit and npm outdated. Summarise critical vulnerabilities. Write action items to docs/dependency-audit.md."
+```
+
+---
+
+#### UC-16: Combined — cron + browser + agent bus
+A nightly job scrapes a status page, analyses it, and routes alerts to a dedicated notifier agent:
+
+```typescript
+cron.addJob('nightly-status-check', '0 3 * * *', 'status-monitor', {
+  requirementsContent: `
+    Navigate to https://status.myinfra.com and take a snapshot.
+    If any services are degraded or down, send an alert:
+    <agent>send to:NOTIFIER_SESSION_ID message:Degraded services detected: [list them]</agent>
+    Write the full status report to docs/nightly-status.md.
+  `,
+  browserEnabled: true,
+  skills: ['incident-response'],
+  timeLimitSeconds: 120,
+});
 ```
 
 ---
@@ -1175,6 +1691,17 @@ When the web server is running these endpoints are available in addition to the 
 | `POST`   | `/api/debugger/:sessionId/copilot-issue` | Create a GitHub issue and assign it to the Copilot coding agent |
 | `GET`    | `/api/settings`                          | Get current settings                                            |
 | `POST`   | `/api/settings`                          | Update settings                                                 |
+| `GET`    | `/api/skills`                            | List all installed skill names                                  |
+| `GET`    | `/api/agents`                            | List all agents currently registered on the AgentBus            |
+| `POST`   | `/api/agents/:id/message`               | Send a message to a registered agent and receive its reply      |
+| `GET`    | `/api/webhooks`                          | List all registered webhooks (tokens never returned)            |
+| `POST`   | `/api/webhooks`                          | Register a new webhook — returns `{id, token}` (token once only)|
+| `DELETE` | `/api/webhooks/:id`                      | Remove a webhook by ID                                          |
+| `POST`   | `/api/webhooks/:id/trigger`             | Trigger an autonomous agent run (requires `X-Webhook-Token`)    |
+| `GET`    | `/api/cron`                              | List all cron jobs                                              |
+| `POST`   | `/api/cron`                              | Create a new cron job                                           |
+| `DELETE` | `/api/cron/:id`                          | Remove a cron job                                               |
+| `PATCH`  | `/api/cron/:id`                          | Enable or disable a cron job (`{enabled: boolean}`)             |
 
 ### `POST /api/debugger/:sessionId/jira`
 
