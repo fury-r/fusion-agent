@@ -145,8 +145,8 @@ export class AutonomousVibeAgent extends EventEmitter {
           await this.sendStep(
             step,
             `User guidance received: ${guidance}\n\n` +
-              `Please re-read the original requirements and continue implementation ` +
-              `in a different way, avoiding what you have already tried.`
+            `Please re-read the original requirements and continue implementation ` +
+            `in a different way, avoiding what you have already tried.`
           );
           this.stepsWithoutChanges = 0;
           this.loopDetector.reset();
@@ -280,8 +280,8 @@ export class AutonomousVibeAgent extends EventEmitter {
     try {
       const clarifyTurn = await this.session.chat(
         'In 2–3 sentences, describe exactly what you are trying to implement, ' +
-          'what you have already done, and what is blocking your progress or ' +
-          'causing you to produce repetitive responses.',
+        'what you have already done, and what is blocking your progress or ' +
+        'causing you to produce repetitive responses.',
         { stream: false }
       );
       confusionSummary = clarifyTurn.assistantMessage;
@@ -337,13 +337,13 @@ export class AutonomousVibeAgent extends EventEmitter {
 
     const browserNote = this.config.browserEnabled
       ? '\n\nBROWSER CONTROL: You have access to a browser. Emit browser instructions ' +
-        'inside <browser>…</browser> tags (one instruction per line):\n' +
-        '  navigate <url>    — go to a URL\n' +
-        '  snapshot          — capture the current page text\n' +
-        '  click <selector>  — click a CSS selector\n' +
-        '  type <selector> <text> — type text into a field\n' +
-        '  eval <js>         — evaluate JavaScript and return the result\n' +
-        'Results will be injected into your next step as context.'
+      'inside <browser>…</browser> tags (one instruction per line):\n' +
+      '  navigate <url>    — go to a URL\n' +
+      '  snapshot          — capture the current page text\n' +
+      '  click <selector>  — click a CSS selector\n' +
+      '  type <selector> <text> — type text into a field\n' +
+      '  eval <js>         — evaluate JavaScript and return the result\n' +
+      'Results will be injected into your next step as context.'
       : '';
 
     const agentNote =

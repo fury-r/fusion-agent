@@ -36,9 +36,9 @@ export interface AutonomousConfig {
    */
   loopSimilarityThreshold?: number;
   /**
-   * Names of skills to load from ~/.fusion-agent/skills/<name>/SKILL.md.
-   * Their content is prepended to the plan prompt as additional context.
-   */
+  * Names of skills to load from ~/.fusion-agent/skills/<name>/SKILL.md.
+  * Their content is prepended to the plan prompt as additional context.
+  */
   skills?: string[];
   /**
    * Enable browser control. When true, the agent can emit <browser>…</browser>
