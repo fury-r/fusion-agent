@@ -10,8 +10,11 @@ import {
   HILRequest,
   VibeCoderStep,
 } from './types';
-import { extractFileBlocks, detectCompletion } from './file-parser';
+import { extractFileBlocks, detectCompletion, extractBrowserBlocks, extractAgentBlocks } from './file-parser';
 import { LoopDetector } from './loop-detector';
+import { loadSkillsContent } from '../skills/registry';
+import { BrowserController } from '../browser/browser-controller';
+import { agentBus } from '../agent-bus/agent-bus';
 
 /**
  * Events emitted by AutonomousVibeAgent:
@@ -34,6 +37,7 @@ export class AutonomousVibeAgent extends EventEmitter {
   private startTime = 0;
   private stopped = false;
   private pendingHILResolve?: (guidance: string) => void;
+  private browser: BrowserController | null = null;
 
   constructor(session: Session, config: AutonomousConfig) {
     super();
@@ -59,6 +63,9 @@ export class AutonomousVibeAgent extends EventEmitter {
     this.startTime = Date.now();
     this.setStatus('running');
 
+    // Register on the agent bus so other agents can send messages to this session
+    agentBus.register(this.session);
+
     try {
       const requirements = this.loadRequirements();
       const rulesText = this.buildRulesText();
@@ -68,6 +75,8 @@ export class AutonomousVibeAgent extends EventEmitter {
       const planPrompt = this.buildPlanPrompt(requirements, rulesText);
       const planResponse = await this.sendStep(0, planPrompt);
       const planFiles = this.applyFileChanges(planResponse, 0);
+      await this.executeBrowserBlocks(planResponse, 0);
+      await this.executeAgentBlocks(planResponse);
       this.recordStep(0, planPrompt, planResponse, planFiles);
 
       if (detectCompletion(planResponse)) {
@@ -111,6 +120,8 @@ export class AutonomousVibeAgent extends EventEmitter {
         }
 
         const changedFiles = this.applyFileChanges(response, step);
+        await this.executeBrowserBlocks(response, step);
+        await this.executeAgentBlocks(response);
         this.recordStep(step, stepPrompt, response, changedFiles);
 
         // No-progress tracking
@@ -134,8 +145,8 @@ export class AutonomousVibeAgent extends EventEmitter {
           await this.sendStep(
             step,
             `User guidance received: ${guidance}\n\n` +
-              `Please re-read the original requirements and continue implementation ` +
-              `in a different way, avoiding what you have already tried.`
+            `Please re-read the original requirements and continue implementation ` +
+            `in a different way, avoiding what you have already tried.`
           );
           this.stepsWithoutChanges = 0;
           this.loopDetector.reset();
@@ -160,6 +171,10 @@ export class AutonomousVibeAgent extends EventEmitter {
       logger.error(`Autonomous vibe agent error: ${error.message}`);
       this.setStatus('stopped');
       this.emit('error', error);
+    } finally {
+      agentBus.unregister(this.session.id);
+      await this.browser?.close();
+      this.browser = null;
     }
   }
 
@@ -184,6 +199,9 @@ export class AutonomousVibeAgent extends EventEmitter {
       resolve('Stop execution.');
     }
     this.setStatus('stopped');
+    agentBus.unregister(this.session.id);
+    void this.browser?.close();
+    this.browser = null;
   }
 
   getStatus(): AutonomousStatus {
@@ -262,8 +280,8 @@ export class AutonomousVibeAgent extends EventEmitter {
     try {
       const clarifyTurn = await this.session.chat(
         'In 2–3 sentences, describe exactly what you are trying to implement, ' +
-          'what you have already done, and what is blocking your progress or ' +
-          'causing you to produce repetitive responses.',
+        'what you have already done, and what is blocking your progress or ' +
+        'causing you to produce repetitive responses.',
         { stream: false }
       );
       confusionSummary = clarifyTurn.assistantMessage;
@@ -308,10 +326,35 @@ export class AutonomousVibeAgent extends EventEmitter {
   }
 
   private buildPlanPrompt(requirements: string, rulesText: string): string {
+    const skillNames = this.config.skills ?? [];
+    let skillsSection = '';
+    if (skillNames.length > 0) {
+      const content = loadSkillsContent(skillNames);
+      if (content) {
+        skillsSection = `\n\nSKILLS & DOMAIN KNOWLEDGE:\n${content}\n`;
+      }
+    }
+
+    const browserNote = this.config.browserEnabled
+      ? '\n\nBROWSER CONTROL: You have access to a browser. Emit browser instructions ' +
+      'inside <browser>…</browser> tags (one instruction per line):\n' +
+      '  navigate <url>    — go to a URL\n' +
+      '  snapshot          — capture the current page text\n' +
+      '  click <selector>  — click a CSS selector\n' +
+      '  type <selector> <text> — type text into a field\n' +
+      '  eval <js>         — evaluate JavaScript and return the result\n' +
+      'Results will be injected into your next step as context.'
+      : '';
+
+    const agentNote =
+      '\n\nAGENT-TO-AGENT: You can message other active sessions by emitting:\n' +
+      '  <agent>send to:<sessionId> message:<your message></agent>\n' +
+      'The reply will be injected into your next step as context.';
+
     return (
       `You are an autonomous AI developer (vibe coder). ` +
       `Fully implement the following requirements by making all necessary file changes.\n\n` +
-      `REQUIREMENTS:\n${requirements}${rulesText}\n\n` +
+      `REQUIREMENTS:\n${requirements}${rulesText}${skillsSection}${browserNote}${agentNote}\n\n` +
       `INSTRUCTIONS:\n` +
       `1. First, write a numbered implementation plan.\n` +
       `2. Immediately implement step 1 by writing complete file content in code blocks:\n` +
@@ -322,6 +365,66 @@ export class AutonomousVibeAgent extends EventEmitter {
       `4. When ALL requirements are fully implemented, end your response with: REQUIREMENTS_COMPLETE\n\n` +
       `Begin your plan and implement step 1 now.`
     );
+  }
+
+  /**
+   * Parse and execute any <browser>…</browser> blocks in the AI response.
+   * Results are injected back into the session as a system context message.
+   */
+  private async executeBrowserBlocks(response: string, stepNumber: number): Promise<void> {
+    if (!this.config.browserEnabled) return;
+    const blocks = extractBrowserBlocks(response);
+    if (blocks.length === 0) return;
+
+    if (!this.browser) {
+      this.browser = new BrowserController(this.config.browserExecutablePath);
+    }
+
+    for (const block of blocks) {
+      const results = await this.browser.execute(block.instructions);
+      const summary = results
+        .map((r) => `[${r.success ? 'OK' : 'ERR'}] ${r.action}${r.data ? `\n${r.data}` : ''}${r.error ? `\nError: ${r.error}` : ''}`)
+        .join('\n\n');
+
+      logger.debug(`Browser results (step ${stepNumber}):\n${summary.slice(0, 500)}`);
+
+      // Inject browser results back into the conversation
+      await this.session.chat(
+        `[Browser results from step ${stepNumber}]:\n${summary}\n\nContinue based on these results.`,
+        { stream: false }
+      );
+    }
+  }
+
+  /**
+   * Parse and dispatch any <agent>send to:<id> message:<text></agent> blocks.
+   * Replies are injected back into the session as context.
+   */
+  private async executeAgentBlocks(response: string): Promise<void> {
+    const blocks = extractAgentBlocks(response);
+    if (blocks.length === 0) return;
+
+    for (const block of blocks) {
+      try {
+        if (!agentBus.isRegistered(block.toSessionId)) {
+          logger.warn(
+            `Agent-to-agent: target session "${block.toSessionId}" is not registered`
+          );
+          continue;
+        }
+        const reply = await agentBus.send(this.session.id, block.toSessionId, block.message);
+        logger.debug(
+          `Agent-to-agent reply from ${block.toSessionId}: ${reply.slice(0, 120)}`
+        );
+        // Inject the reply back into this session
+        await this.session.chat(
+          `[Reply from agent ${block.toSessionId}]: ${reply}\n\nContinue based on this reply.`,
+          { stream: false }
+        );
+      } catch (err) {
+        logger.warn(`Agent-to-agent send failed: ${err}`);
+      }
+    }
   }
 
   private isTimedOut(): boolean {

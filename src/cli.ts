@@ -19,6 +19,9 @@ import { logger } from './utils/logger';
 import { ClusterMonitor } from './cluster-monitor/cluster-monitor';
 import { loadClusterRules, DEFAULT_CLUSTER_RULES } from './cluster-monitor/rules';
 import { ClusterMonitorConfig, ServiceTarget, MonitorMode } from './cluster-monitor/types';
+import { listSkills, loadSkill, loadRemoteSkill } from './skills/registry';
+import { createWebhook, listWebhooks, deleteWebhook } from './utils/webhook-store';
+import { CronManager } from './cron/cron-manager';
 
 const program = new Command();
 
@@ -619,6 +622,220 @@ program
 
     // Keep alive
     await new Promise<void>(() => { /* resolved by SIGINT/SIGTERM */ });
+  });
+
+// ── skill command ─────────────────────────────────────────────────────────────
+program
+  .command('skill [subcommand] [args...]')
+  .description('Manage installed skills (~/.fusion-agent/skills/)\n  Subcommands: list, show <name>, fetch <name> <url>')
+  .action((subcommand: string | undefined, args: string[]) => {
+    if (!subcommand || subcommand === 'list') {
+      const skills = listSkills();
+      if (!skills.length) {
+        console.log(chalk.dim('\n  No skills installed. Use: ai-agent skill fetch <name> <url>\n'));
+        return;
+      }
+      console.log(chalk.bold('\n  Installed Skills:\n'));
+      for (const sk of skills) {
+        console.log(`  ${chalk.cyan(sk)}`);
+      }
+      console.log();
+      return;
+    }
+
+    if (subcommand === 'show') {
+      const name = args[0];
+      if (!name) {
+        console.error(chalk.red('✗ Provide a skill name: ai-agent skill show <name>'));
+        process.exit(1);
+      }
+      const skill = loadSkill(name);
+      if (!skill) {
+        console.error(chalk.red(`✗ Skill "${name}" not found.`));
+        process.exit(1);
+      }
+      console.log(chalk.bold(`\n  Skill: ${skill.name}\n`));
+      console.log(skill.content);
+      console.log();
+      return;
+    }
+
+    if (subcommand === 'fetch') {
+      const [name, url] = args;
+      if (!name || !url) {
+        console.error(chalk.red('✗ Usage: ai-agent skill fetch <name> <url>'));
+        process.exit(1);
+      }
+      const spinner = ora(`Fetching skill "${name}"…`).start();
+      loadRemoteSkill(name, url, true)
+        .then((skill) => {
+          spinner.succeed(`Skill "${skill.name}" installed.`);
+        })
+        .catch((err: unknown) => {
+          spinner.fail(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+          process.exit(1);
+        });
+      return;
+    }
+
+    console.error(chalk.red(`✗ Unknown subcommand "${subcommand}". Use: list | show <name> | fetch <name> <url>`));
+    process.exit(1);
+  });
+
+// ── webhook command ───────────────────────────────────────────────────────────
+program
+  .command('webhook <action>')
+  .description('Manage autonomous agent webhooks\n  Actions: list, add, remove <id>')
+  .option('--name <name>', 'Webhook name (for add)')
+  .option('--session <session>', 'Target session name (for add)')
+  .option('--requirements <text>', 'Requirements text for the autonomous run (for add)')
+  .action((action: string, opts: { name?: string; session?: string; requirements?: string }) => {
+    if (action === 'list') {
+      const hooks = listWebhooks();
+      if (!hooks.length) {
+        console.log(chalk.dim('\n  No webhooks registered.\n'));
+        return;
+      }
+      console.log(chalk.bold('\n  Registered Webhooks:\n'));
+      for (const h of hooks) {
+        console.log(`  ${chalk.cyan(h.id.padEnd(20))} ${chalk.bold((h.name || '(unnamed)').padEnd(20))} session: ${chalk.dim(h.sessionName || '—')}`);
+      }
+      console.log();
+      return;
+    }
+
+    if (action === 'add') {
+      if (!opts.name) {
+        console.error(chalk.red('✗ --name is required for webhook add'));
+        process.exit(1);
+      }
+      const result = createWebhook(
+        opts.name,
+        opts.session || opts.name,
+        opts.requirements ? { requirementsContent: opts.requirements } : {}
+      );
+      console.log(chalk.green('\n  ✓ Webhook created.\n'));
+      console.log(`  ${chalk.bold('ID:')}    ${result.id}`);
+      console.log(`  ${chalk.bold('Token:')} ${result.token}`);
+      console.log(chalk.yellow('\n  ⚠ Save this token — it will not be shown again.\n'));
+      return;
+    }
+
+    if (action === 'remove') {
+      const id = opts.name; // repurpose --name as id if positional not available
+      // Try to get id from remaining argv
+      const rawArgs = process.argv;
+      const actionIdx = rawArgs.indexOf('remove');
+      const webhookId = actionIdx >= 0 ? rawArgs[actionIdx + 1] : undefined;
+      const targetId = webhookId && !webhookId.startsWith('--') ? webhookId : id;
+      if (!targetId) {
+        console.error(chalk.red('✗ Provide webhook ID: ai-agent webhook remove <id>'));
+        process.exit(1);
+      }
+      const deleted = deleteWebhook(targetId);
+      if (deleted) {
+        console.log(chalk.green(`  ✓ Webhook ${targetId} removed.\n`));
+      } else {
+        console.error(chalk.red(`  ✗ Webhook "${targetId}" not found.\n`));
+        process.exit(1);
+      }
+      return;
+    }
+
+    console.error(chalk.red(`✗ Unknown action "${action}". Use: list | add | remove <id>`));
+    process.exit(1);
+  });
+
+// ── cron command ──────────────────────────────────────────────────────────────
+program
+  .command('cron <action>')
+  .description('Manage scheduled autonomous agent runs\n  Actions: list, add, remove <id>, enable <id>, disable <id>')
+  .option('--name <name>', 'Job name (for add)')
+  .option('--schedule <cron>', 'Cron expression, e.g. "0 9 * * 1-5" (for add)')
+  .option('--session <session>', 'Target session name (for add)')
+  .option('--requirements <text>', 'Requirements text for the autonomous run (for add)')
+  .action((action: string, opts: { name?: string; schedule?: string; session?: string; requirements?: string }) => {
+    // CronManager is used as a file-only manager here (no live scheduler in CLI mode)
+    const cronManager = new CronManager(undefined);
+
+    if (action === 'list') {
+      const jobs = cronManager.listJobs();
+      if (!jobs.length) {
+        console.log(chalk.dim('\n  No cron jobs scheduled.\n'));
+        return;
+      }
+      console.log(chalk.bold('\n  Scheduled Jobs:\n'));
+      for (const j of jobs) {
+        const status = j.enabled ? chalk.green('●') : chalk.dim('○');
+        console.log(`  ${status} ${chalk.cyan(j.id.slice(0, 8))} ${chalk.bold((j.name || '—').padEnd(20))} ${chalk.dim(j.schedule.padEnd(16))} session: ${chalk.dim(j.sessionName || '—')}`);
+      }
+      console.log();
+      return;
+    }
+
+    if (action === 'add') {
+      if (!opts.name || !opts.schedule) {
+        console.error(chalk.red('✗ --name and --schedule are required for cron add'));
+        console.error(chalk.dim('  Example: ai-agent cron add --name daily-review --schedule "0 9 * * 1-5" --requirements "Review open PRs"'));
+        process.exit(1);
+      }
+      const job = cronManager.addJob(
+        opts.name,
+        opts.schedule,
+        opts.session || opts.name,
+        opts.requirements ? { requirementsContent: opts.requirements } : {}
+      );
+      console.log(chalk.green('\n  ✓ Cron job created.\n'));
+      console.log(`  ${chalk.bold('ID:')}       ${job.id}`);
+      console.log(`  ${chalk.bold('Name:')}     ${job.name}`);
+      console.log(`  ${chalk.bold('Schedule:')} ${job.schedule}`);
+      console.log(`  ${chalk.bold('Session:')}  ${job.sessionName}\n`);
+      cronManager.stopAll();
+      return;
+    }
+
+    if (action === 'remove') {
+      const rawArgs = process.argv;
+      const actionIdx = rawArgs.indexOf('remove');
+      const cronId = actionIdx >= 0 ? rawArgs[actionIdx + 1] : undefined;
+      const targetId = cronId && !cronId.startsWith('--') ? cronId : opts.name;
+      if (!targetId) {
+        console.error(chalk.red('✗ Provide job ID: ai-agent cron remove <id>'));
+        process.exit(1);
+      }
+      const removed = cronManager.removeJob(targetId);
+      if (removed) {
+        console.log(chalk.green(`  ✓ Cron job ${targetId} removed.\n`));
+      } else {
+        console.error(chalk.red(`  ✗ Cron job "${targetId}" not found.\n`));
+        process.exit(1);
+      }
+      cronManager.stopAll();
+      return;
+    }
+
+    if (action === 'enable' || action === 'disable') {
+      const rawArgs = process.argv;
+      const actionIdx = rawArgs.indexOf(action);
+      const cronId = actionIdx >= 0 ? rawArgs[actionIdx + 1] : undefined;
+      const targetId = cronId && !cronId.startsWith('--') ? cronId : opts.name;
+      if (!targetId) {
+        console.error(chalk.red(`✗ Provide job ID: ai-agent cron ${action} <id>`));
+        process.exit(1);
+      }
+      const updated = cronManager.setEnabled(targetId, action === 'enable');
+      if (updated) {
+        console.log(chalk.green(`  ✓ Cron job ${targetId} ${action}d.\n`));
+      } else {
+        console.error(chalk.red(`  ✗ Cron job "${targetId}" not found.\n`));
+        process.exit(1);
+      }
+      cronManager.stopAll();
+      return;
+    }
+
+    console.error(chalk.red(`✗ Unknown action "${action}". Use: list | add | remove <id> | enable <id> | disable <id>`));
+    process.exit(1);
   });
 
 program.parse(process.argv);

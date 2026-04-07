@@ -9,6 +9,11 @@ import { createSessionRoutes } from './routes/sessions';
 import { createSettingsRoutes } from './routes/settings';
 import { createVibeCoderRoutes, registerVibeCoderSocket } from './routes/vibe-coder';
 import { createDebuggerRoutes } from './routes/debugger';
+import { createWebhookRoutes } from './routes/webhooks';
+import { createCronRoutes } from './routes/cron';
+import { CronManager } from '../cron/cron-manager';
+import { agentBus } from '../agent-bus/agent-bus';
+import { listSkills } from '../skills/registry';
 import { logger } from '../utils/logger';
 
 export interface WebServerOptions {
@@ -60,6 +65,49 @@ export function createWebServer(options: WebServerOptions) {
   app.use('/api/vibe-coder', createVibeCoderRoutes(options.sessionManager, vibeCoderOptions));
   app.use('/api/debugger', createDebuggerRoutes(options.sessionManager));
 
+  // Webhooks
+  const webhookOptions = {
+    sessionManager: options.sessionManager,
+    apiKey: options.apiKey,
+    provider: options.provider,
+    model: options.model,
+  };
+  app.use('/api/webhooks', createWebhookRoutes(webhookOptions));
+
+  // Cron
+  const cronManager = new CronManager(options.sessionManager, {
+    apiKey: options.apiKey,
+    provider: options.provider,
+    model: options.model,
+  });
+  cronManager.restoreJobs();
+  app.use('/api/cron', createCronRoutes(cronManager));
+
+  // Skills list (read-only)
+  app.get('/api/skills', (_req, res) => {
+    res.json({ skills: listSkills() });
+  });
+
+  // Agents list (active sessions registered on the bus)
+  app.get('/api/agents', (_req, res) => {
+    res.json({ agents: agentBus.list() });
+  });
+
+  // Agent-to-agent message (external trigger)
+  app.post('/api/agents/:id/message', async (req, res) => {
+    const { message, fromSessionId } = req.body as { message?: string; fromSessionId?: string };
+    if (!message) {
+      res.status(400).json({ error: '"message" is required' });
+      return;
+    }
+    try {
+      const reply = await agentBus.send(fromSessionId || 'external', req.params.id, message);
+      res.json({ reply });
+    } catch (err) {
+      res.status(404).json({ error: String(err) });
+    }
+  });
+
   // Catch-all: serve index.html for SPA-style navigation
   app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -94,6 +142,17 @@ export function createWebServer(options: WebServerOptions) {
     socket.on('disconnect', () => {
       logger.debug(`Web UI client disconnected: ${socket.id}`);
     });
+  });
+
+  // Forward agent-bus events to all connected Socket.IO clients
+  agentBus.on('agent:message', (data: unknown) => {
+    io.emit('agent:message', data);
+  });
+  agentBus.on('agent:registered', (data: unknown) => {
+    io.emit('agent:registered', data);
+  });
+  agentBus.on('agent:unregistered', (data: unknown) => {
+    io.emit('agent:unregistered', data);
   });
 
   function watchSessionsDir(): void {
