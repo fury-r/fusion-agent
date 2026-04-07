@@ -1,3 +1,4 @@
+import fs from 'fs';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { logger } from '../utils/logger';
 
@@ -41,7 +42,6 @@ function resolveExecutablePath(override?: string): string {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
   const candidates =
     (COMMON_CHROME_PATHS[process.platform as NodeJS.Platform] ?? []);
-  const fs = require('fs') as typeof import('fs');
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
   }
@@ -149,7 +149,6 @@ export class BrowserController {
 
   async evaluate(js: string): Promise<BrowserActionResult> {
     const page = await this.ensureBrowser();
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const result = await page.evaluate(js);
     return { action: `eval ${js}`, success: true, data: String(result) };
   }
