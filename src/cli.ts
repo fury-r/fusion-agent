@@ -395,7 +395,7 @@ function providerEnvVar(provider: string): string {
     openai: 'OPENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
     gemini: 'GEMINI_API_KEY',
-    local: 'LOCAL_LLM_API_KEY (optional)',
+    local: 'LOCAL_LLM_API_KEY',
   };
   return map[provider] || 'API_KEY';
 }

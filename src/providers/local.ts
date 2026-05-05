@@ -27,7 +27,7 @@ export class LocalProvider extends BaseProvider {
     baseUrl = DEFAULT_LOCAL_BASE_URL,
     apiKey = 'local',
   ) {
-    super(apiKey, model);
+    super('local', model);
     this.client = new OpenAI({
       apiKey: apiKey || 'local',
       baseURL: baseUrl,
