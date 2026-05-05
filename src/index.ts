@@ -74,12 +74,13 @@ export class AgentCLI {
   /**
    * Quick one-shot chat without managing sessions.
    */
-  async chat(message: string, options: { provider?: string; model?: string; speckit?: string; stream?: boolean; onChunk?: (c: string) => void } = {}): Promise<string> {
+  async chat(message: string, options: { provider?: string; model?: string; speckit?: string; stream?: boolean; onChunk?: (c: string) => void; baseUrl?: string } = {}): Promise<string> {
     const speckit = options.speckit ? SPECKITS[options.speckit] : undefined;
     const provider = createProvider({
-      provider: (options.provider || this.config.provider) as 'openai' | 'anthropic' | 'gemini',
+      provider: (options.provider || this.config.provider) as 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'local',
       model: options.model || this.config.model,
       apiKey: this.config.apiKey,
+      baseUrl: options.baseUrl || this.config.baseUrl,
     });
 
     const result = await provider.complete({

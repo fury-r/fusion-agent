@@ -24,9 +24,11 @@ export interface GitHubAppConfig {
 }
 
 export interface AIAgentConfig {
-  provider: 'openai' | 'anthropic' | 'gemini';
+  provider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'local';
   model?: string;
   apiKey?: string;
+  /** Base URL for local providers (ollama, local). Overrides the default endpoint. */
+  baseUrl?: string;
   port?: number;
   sessionDir?: string;
   guardrails?: GuardrailConfig[];
@@ -97,6 +99,15 @@ export function loadConfig(overrides: Partial<AIAgentConfig> = {}): AIAgentConfi
   if (process.env.GEMINI_API_KEY && envConfig.provider === 'gemini') {
     envConfig.apiKey = process.env.GEMINI_API_KEY;
   }
+  if (process.env.LOCAL_LLM_API_KEY && envConfig.provider === 'local') {
+    envConfig.apiKey = process.env.LOCAL_LLM_API_KEY;
+  }
+  if (process.env.OLLAMA_BASE_URL && envConfig.provider === 'ollama') {
+    envConfig.baseUrl = process.env.OLLAMA_BASE_URL;
+  }
+  if (process.env.LOCAL_LLM_BASE_URL && envConfig.provider === 'local') {
+    envConfig.baseUrl = process.env.LOCAL_LLM_BASE_URL;
+  }
   if (process.env.AI_AGENT_PORT) envConfig.port = parseInt(process.env.AI_AGENT_PORT, 10);
 
   const merged: AIAgentConfig = {
@@ -106,11 +117,16 @@ export function loadConfig(overrides: Partial<AIAgentConfig> = {}): AIAgentConfi
     ...overrides,
   };
 
-  // Resolve API key from environment if not set
+  // Resolve API key and base URL from environment if not set
   if (!merged.apiKey) {
     if (merged.provider === 'openai') merged.apiKey = process.env.OPENAI_API_KEY;
     else if (merged.provider === 'anthropic') merged.apiKey = process.env.ANTHROPIC_API_KEY;
     else if (merged.provider === 'gemini') merged.apiKey = process.env.GEMINI_API_KEY;
+    else if (merged.provider === 'local') merged.apiKey = process.env.LOCAL_LLM_API_KEY;
+  }
+  if (!merged.baseUrl) {
+    if (merged.provider === 'ollama') merged.baseUrl = process.env.OLLAMA_BASE_URL;
+    else if (merged.provider === 'local') merged.baseUrl = process.env.LOCAL_LLM_BASE_URL;
   }
 
   // Ensure session dir exists

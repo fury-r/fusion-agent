@@ -34,19 +34,21 @@ program
 program
   .command('chat')
   .description('Start an interactive chat session (vibe coder mode)')
-  .option('-p, --provider <provider>', 'AI provider (openai|anthropic|gemini)')
+  .option('-p, --provider <provider>', 'AI provider (openai|anthropic|gemini|ollama|local)')
   .option('-m, --model <model>', 'Model name')
   .option('-s, --session <name>', 'Session name (creates or resumes)', 'default')
   .option('-k, --speckit <speckit>', 'Speckit to use (e.g. vibe-coder, debugger)')
   .option('-g, --guardrail <rule>', 'Add a guardrail rule (can be repeated)', collectArray, [])
   .option('--context', 'Include project context in first message', false)
+  .option('--base-url <url>', 'Base URL for local providers (ollama, local)')
   .action(async (opts) => {
     const config = loadConfig({
       provider: opts.provider,
       model: opts.model,
+      baseUrl: opts.baseUrl,
     });
 
-    if (!config.apiKey) {
+    if (!config.apiKey && config.provider !== 'ollama' && config.provider !== 'local') {
       console.error(chalk.red(`✗ No API key found for provider "${config.provider}".`));
       console.error(chalk.yellow(`  Set the ${providerEnvVar(config.provider)} environment variable.`));
       process.exit(1);
@@ -64,7 +66,7 @@ program
 
     const sessionsDir = config.sessionDir || path.join(os.homedir(), '.fusion-agent', 'sessions');
     const sessionManager = new SessionManager(sessionsDir);
-    const provider = createProvider({ provider: config.provider, model: config.model, apiKey: config.apiKey });
+    const provider = createProvider({ provider: config.provider, model: config.model, apiKey: config.apiKey, baseUrl: config.baseUrl });
 
     // Try to find existing session by name
     const existing = sessionManager.listSessions().find((s) => s.name === opts.session);
@@ -138,8 +140,9 @@ program
 program
   .command('debug')
   .description('Attach to a live service and start AI-assisted debugging')
-  .option('-p, --provider <provider>', 'AI provider')
+  .option('-p, --provider <provider>', 'AI provider (openai|anthropic|gemini|ollama|local)')
   .option('-m, --model <model>', 'Model name')
+  .option('--base-url <url>', 'Base URL for local providers (ollama, local)')
   .option('-f, --file <logFile>', 'Watch a log file')
   .option('-d, --docker <container>', 'Attach to Docker container logs')
   .option('-c, --cmd <command>', 'Run and attach to a process command')
@@ -156,9 +159,9 @@ program
   .option('--ui', 'Also launch the Web UI alongside the debugger')
   .option('--port <port>', 'Web UI port when --ui is used (default: 3000)', '3000')
   .action(async (opts) => {
-    const config = loadConfig({ provider: opts.provider, model: opts.model });
+    const config = loadConfig({ provider: opts.provider, model: opts.model, baseUrl: opts.baseUrl });
 
-    if (!config.apiKey) {
+    if (!config.apiKey && config.provider !== 'ollama' && config.provider !== 'local') {
       console.error(chalk.red(`✗ No API key for provider "${config.provider}".`));
       process.exit(1);
     }
@@ -392,6 +395,7 @@ function providerEnvVar(provider: string): string {
     openai: 'OPENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
     gemini: 'GEMINI_API_KEY',
+    local: 'LOCAL_LLM_API_KEY (optional)',
   };
   return map[provider] || 'API_KEY';
 }
@@ -485,14 +489,15 @@ program
   .option('--all', 'Discover and monitor all deployments in the namespace', false)
   .option('-n, --namespace <ns>', 'Kubernetes namespace', 'default')
   .option('-m, --mode <mode>', 'Mode: auto-fix | notify-only | human-in-loop', 'human-in-loop')
-  .option('-p, --provider <provider>', 'AI provider (openai|anthropic|gemini)')
+  .option('-p, --provider <provider>', 'AI provider (openai|anthropic|gemini|ollama|local)')
   .option('--model <model>', 'Model name')
+  .option('--base-url <url>', 'Base URL for local providers (ollama, local)')
   .option('--batch-size <n>', 'Log lines before AI analysis (default: 20)', '20')
   .option('--max-wait <s>', 'Max seconds before flushing partial batch (default: 30)', '30')
   .action(async (opts) => {
-    const config = loadConfig({ provider: opts.provider, model: opts.model });
+    const config = loadConfig({ provider: opts.provider, model: opts.model, baseUrl: opts.baseUrl });
 
-    if (!config.apiKey) {
+    if (!config.apiKey && config.provider !== 'ollama' && config.provider !== 'local') {
       console.error(chalk.red(`✗ No API key found for provider "${config.provider}".`));
       console.error(chalk.yellow(`  Set ${providerEnvVar(config.provider)} environment variable.`));
       process.exit(1);
