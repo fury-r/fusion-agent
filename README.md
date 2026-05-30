@@ -7,6 +7,8 @@ An AI-powered **vibe coder**, **live service debugger**, **autonomous agent**, a
 
 Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming responses.
 
+📖 **[Full Documentation](https://fusion-agent-docs.netlify.app/)**
+
 ---
 
 ## Features
