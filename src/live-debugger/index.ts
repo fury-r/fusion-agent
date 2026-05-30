@@ -76,6 +76,8 @@ export class LiveDebugger extends EventEmitter {
   private sessionId: string;
   /** Effective token limit for log prompts. Auto-detected from 429 errors when not configured. */
   private logTokenLimit?: number;
+  /** Cache of error fingerprint → { count, turnId, lastSeen } for deduplication. */
+  private errorCache: Map<string, { count: number; turnId: string; lastSeen: string }> = new Map();
 
   constructor(options: LiveDebuggerOptions) {
     super();
@@ -209,10 +211,54 @@ export class LiveDebugger extends EventEmitter {
         }
       }
 
+      // ── Deduplication check ───────────────────────────────────────────────
+      const fingerprint = this.makeErrorFingerprint(lines);
+      const cached = this.errorCache.get(fingerprint);
+      if (cached) {
+        cached.count += 1;
+        cached.lastSeen = new Date().toISOString();
+
+        // Update the repeat count on the original session turn
+        const turns = typeof this.session.getTurns === 'function' ? this.session.getTurns() : [];
+        const originalTurn = turns.find((t) => t.id === cached.turnId);
+        if (originalTurn?.debuggerMeta) {
+          originalTurn.debuggerMeta.repeatCount = cached.count;
+          originalTurn.debuggerMeta.lastSeenAt = cached.lastSeen;
+        }
+
+        logger.info(`Live debugger: duplicate error suppressed (seen ${cached.count}×), fingerprint hash: ${fingerprint.slice(0, 60)}…`);
+        this.io?.to(`debugger:${this.sessionId}`).emit('debugger:error-repeated', {
+          sessionId: this.sessionId,
+          turnId: cached.turnId,
+          repeatCount: cached.count,
+          lastSeen: cached.lastSeen,
+          logLines: lines,
+        });
+        this.emit('error-repeated', { turnId: cached.turnId, repeatCount: cached.count });
+        return;
+      }
+      // ── End deduplication check ───────────────────────────────────────────
+
       const rawLogContent = lines.join('\n');
       const logContent = this.truncateToTokenLimit(rawLogContent);
-      const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.\n\n\`\`\`\n${logContent}\n\`\`\``;
+      const prompt = `Analyze the following log output from a running service. Identify any errors, their root causes, and provide specific code fixes if possible.
+
+When providing code fixes, you MUST format every fixed file using this exact format so the fix can be applied automatically:
+\`\`\`language:path/to/file.ext
+// full corrected file content
+\`\`\`
+For example: \`\`\`typescript:src/services/user.ts
+
+Log output:
+\`\`\`
+${logContent}
+\`\`\``;
       const promptSentAt = new Date().toISOString();
+
+      // Register the fingerprint BEFORE calling the AI so that any subsequent
+      // flush of the same error (e.g. while the AI call is in-flight, or if the
+      // turn attachment below fails for any reason) is immediately suppressed.
+      this.errorCache.set(fingerprint, { count: 1, turnId: '', lastSeen: promptSentAt });
 
       const analysis = await this.callAI(prompt);
       const responseReceivedAt = new Date().toISOString();
@@ -224,13 +270,17 @@ export class LiveDebugger extends EventEmitter {
         responseReceivedAt,
         notificationSent: false,
         fixApplied: false,
+        repeatCount: 1,
+        errorFingerprint: fingerprint,
       };
 
-      // Attach meta to the most-recently created turn
+      // Attach meta to the most-recently created turn and back-fill the turnId.
       const turns = typeof this.session.getTurns === 'function' ? this.session.getTurns() : [];
       const lastTurn = turns[turns.length - 1];
       if (lastTurn) {
         lastTurn.debuggerMeta = meta;
+        const cacheEntry = this.errorCache.get(fingerprint);
+        if (cacheEntry) cacheEntry.turnId = lastTurn.id;
       }
 
       this.emit('analysis', analysis, meta);
@@ -345,6 +395,43 @@ export class LiveDebugger extends EventEmitter {
       this.emit('error', error);
       return '';
     }
+  }
+
+  /**
+   * Build a normalised fingerprint from a batch of log lines so that the
+   * same error appearing repeatedly produces the same string regardless of
+   * timestamps, request IDs, counters, ports, line numbers, etc.
+   *
+   * Only the first 5 error-matching lines are used so that context noise
+   * from surrounding non-error lines is ignored.
+   */
+  private makeErrorFingerprint(lines: string[]): string {
+    const errorKeywords = /error|exception|fatal|critical|traceback|panic|fail/i;
+    const errorLines = lines.filter((l) => errorKeywords.test(l));
+    // Fall back to all lines when no error-keyword lines are found
+    const toNormalize = (errorLines.length > 0 ? errorLines : lines).slice(0, 5);
+    const normalized = toNormalize.map((l) =>
+      l
+        // ISO / RFC timestamps  2024-01-01T00:00:00.000Z
+        .replace(/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?/g, '<TS>')
+        // Plain time  12:34:56.789
+        .replace(/\b\d{2}:\d{2}:\d{2}(\.\d+)?\b/g, '<TIME>')
+        // UUIDs  550e8400-e29b-41d4-a716-446655440000
+        .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<UUID>')
+        // Hex addresses / hashes  0x7ffabcde  or bare  deadbeef
+        .replace(/\b0x[0-9a-fA-F]+\b/g, '<ADDR>')
+        .replace(/\b[0-9a-fA-F]{8,}\b/g, '<HEX>')
+        // Dynamic label prefixes  pid:123  tid:456  thread-7  req-abc123
+        .replace(/\b(pid|tid|thread|req|request|trace|span|correlation|job)[:\s#-]*[a-z0-9_-]+/gi, '<ID>')
+        // IP addresses  127.0.0.1  ::1
+        .replace(/\b\d{1,3}(\.\d{1,3}){3}\b/g, '<IP>')
+        // file.js:42:10 style  (strip :line:col suffixes)
+        .replace(/:\d+:\d+(\)|\s|$)/g, ':<N>:<N>$1')
+        // ALL remaining numbers (ports, counters, attempt N, exit code 1, …)
+        .replace(/\b\d+\b/g, '<N>')
+        .trim()
+    );
+    return normalized.join('\n');
   }
 
   /**

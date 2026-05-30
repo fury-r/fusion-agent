@@ -1,0 +1,3500 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fusion-agent — Documentation</title>
+    <meta name="description"
+        content="AI-powered developer toolkit: vibe coder, live debugger, autonomous agent, and session manager." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
+        rel="stylesheet" />
+    <style>
+        /* ── Tokens ───────────────────────────────────────────────── */
+        :root {
+            --bg: #080807;
+            --surface: #111110;
+            --surface2: #1c1c1a;
+            --surface3: #242422;
+            --border: #2a2a28;
+            --border2: #3a3a38;
+            --accent: #f5a623;
+            --accent-lo: rgba(245, 166, 35, 0.10);
+            --accent-md: rgba(245, 166, 35, 0.20);
+            --text: #f2f0eb;
+            --muted: #77756f;
+            --muted2: #545350;
+            --success: #3ecf8e;
+            --danger: #f87171;
+            --warn: #fbbf24;
+            --info: #60a5fa;
+            --radius: 6px;
+            --radius-lg: 10px;
+            --toc: 256px;
+            --hdr: 52px;
+            --font-mono: 'IBM Plex Mono', 'Fira Code', monospace;
+            --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        html.light {
+            --bg: #f8f7f4;
+            --surface: #ffffff;
+            --surface2: #f0ede8;
+            --surface3: #e8e4dd;
+            --border: #ddd9d2;
+            --border2: #c9c4bc;
+            --accent: #d4820a;
+            --accent-lo: rgba(212, 130, 10, 0.09);
+            --accent-md: rgba(212, 130, 10, 0.18);
+            --text: #1c1a18;
+            --muted: #6b6760;
+            --muted2: #9c9890;
+            --success: #1a9e6a;
+            --danger: #c0392b;
+            --warn: #b8860b;
+            --info: #2563eb;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        html.light ::-webkit-scrollbar-thumb {
+            background: var(--border2);
+        }
+
+        html.light .hdr {
+            background: rgba(248, 247, 244, 0.92);
+        }
+
+        html.light .toc {
+            background: var(--bg);
+        }
+
+        html.light .arch-box.accent {
+            background: var(--accent-lo);
+        }
+
+        html.light .callout.info {
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        html.light .callout.success {
+            background: rgba(26, 158, 106, 0.05);
+        }
+
+        html.light .callout.warn {
+            background: rgba(184, 134, 11, 0.05);
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--muted2);
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .hdr {
+            height: var(--hdr);
+            background: rgba(8, 8, 7, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 0;
+            flex-shrink: 0;
+            z-index: 100;
+            position: relative;
+        }
+
+        .hdr-logo {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            user-select: none;
+        }
+
+        .hdr-logo-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 2.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px var(--accent);
+                opacity: 1;
+            }
+
+            50% {
+                box-shadow: 0 0 16px var(--accent);
+                opacity: 0.7;
+            }
+        }
+
+        .hdr-slash {
+            color: var(--border2);
+            margin: 0 10px;
+            font-size: 0.9rem;
+            font-family: var(--font-mono);
+        }
+
+        .hdr-sub {
+            font-size: 0.82rem;
+            color: var(--muted);
+            font-family: var(--font-mono);
+            letter-spacing: 0.01em;
+        }
+
+        .hdr-space {
+            flex: 1;
+        }
+
+        .hdr-badge {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 4px;
+            background: var(--accent-lo);
+            color: var(--accent);
+            border: 1px solid rgba(245, 166, 35, 0.25);
+            letter-spacing: 0.04em;
+            margin-right: 10px;
+        }
+
+        .hdr-link {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-decoration: none;
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transition: color 0.15s, border-color 0.15s;
+            letter-spacing: 0.03em;
+        }
+
+        .hdr-link:hover {
+            color: var(--accent);
+            border-color: rgba(245, 166, 35, 0.4);
+        }
+
+        .theme-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: none;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 0.95rem;
+            margin-right: 8px;
+            flex-shrink: 0;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+
+        .theme-btn:hover {
+            color: var(--accent);
+            border-color: rgba(245, 166, 35, 0.4);
+            background: var(--accent-lo);
+        }
+
+        .theme-btn .icon-sun {
+            display: none;
+        }
+
+        .theme-btn .icon-moon {
+            display: block;
+        }
+
+        html.light .theme-btn .icon-sun {
+            display: block;
+        }
+
+        html.light .theme-btn .icon-moon {
+            display: none;
+        }
+
+        /* ── Layout ───────────────────────────────────────────────── */
+        .layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── TOC ──────────────────────────────────────────────────── */
+        .toc {
+            width: var(--toc);
+            flex-shrink: 0;
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 20px 0 40px;
+            position: relative;
+        }
+
+        .toc-section {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted2);
+            padding: 16px 20px 7px;
+            opacity: 0.8;
+        }
+
+        .toc-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 20px;
+            font-size: 0.835rem;
+            font-weight: 400;
+            color: var(--muted);
+            cursor: pointer;
+            transition: color 0.15s, background 0.15s;
+            border: none;
+            background: none;
+            text-align: left;
+            width: 100%;
+            position: relative;
+            border-left: 2px solid transparent;
+        }
+
+        .toc-item:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .toc-item.active {
+            color: var(--accent);
+            font-weight: 500;
+            background: var(--accent-lo);
+            border-left-color: var(--accent);
+        }
+
+        .toc-icon {
+            font-size: 0.85rem;
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+            opacity: 0.8;
+        }
+
+        .toc-item.active .toc-icon {
+            opacity: 1;
+        }
+
+        /* ── Main ─────────────────────────────────────────────────── */
+        .main {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* ── Articles ─────────────────────────────────────────────── */
+        article {
+            display: none;
+            max-width: 860px;
+            padding: 40px 40px 80px 28px;
+            animation: fadein 0.22s ease forwards;
+        }
+
+        article.active {
+            display: block;
+        }
+
+        @keyframes fadein {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            article {
+                animation: none;
+            }
+        }
+
+        /* ── Typography ───────────────────────────────────────────── */
+        h1 {
+            font-family: var(--font-mono);
+            font-size: 1.85rem;
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: -0.03em;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        h2 {
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 40px 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        h3 {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+            margin: 24px 0 10px;
+            letter-spacing: -0.01em;
+        }
+
+        p {
+            font-size: 0.905rem;
+            color: var(--muted);
+            line-height: 1.75;
+            margin-bottom: 14px;
+            font-weight: 300;
+        }
+
+        p strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Inline code ──────────────────────────────────────────── */
+        :not(pre)>code {
+            font-family: var(--font-mono);
+            font-size: 0.8em;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1px 6px;
+            color: var(--text);
+        }
+
+        /* ── Code blocks ──────────────────────────────────────────── */
+        .code-wrap {
+            position: relative;
+            margin: 12px 0 22px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-lang {
+            font-family: var(--font-mono);
+            font-size: 0.67rem;
+            color: var(--muted2);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .code-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .code-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--border2);
+            transition: background 0.15s;
+        }
+
+        .code-wrap:hover .code-dot:nth-child(1) {
+            background: #ff5f57;
+        }
+
+        .code-wrap:hover .code-dot:nth-child(2) {
+            background: #febc2e;
+        }
+
+        .code-wrap:hover .code-dot:nth-child(3) {
+            background: #28c840;
+        }
+
+        .code-copy {
+            font-family: var(--font-mono);
+            font-size: 0.67rem;
+            color: var(--muted2);
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .code-copy:hover {
+            color: var(--accent);
+            border-color: rgba(245, 166, 35, 0.3);
+        }
+
+        .code-copy.ok {
+            color: var(--success);
+            border-color: rgba(62, 207, 142, 0.3);
+        }
+
+        pre {
+            margin: 0;
+            padding: 18px 20px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            font-family: var(--font-mono);
+            font-size: 0.785rem;
+            line-height: 1.75;
+            color: var(--text);
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        /* Syntax */
+        .cm {
+            color: #545350;
+            font-style: italic;
+        }
+
+        .kw {
+            color: #93c5fd;
+        }
+
+        .st {
+            color: #86efac;
+        }
+
+        .nm {
+            color: #fca5a5;
+        }
+
+        .fn {
+            color: #c4b5fd;
+        }
+
+        .ty {
+            color: #fde68a;
+        }
+
+        .op {
+            color: var(--muted2);
+        }
+
+        .cmd {
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .hl {
+            color: var(--accent);
+        }
+
+        /* ── Lists ────────────────────────────────────────────────── */
+        ol,
+        ul {
+            padding-left: 1.4em;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin: 6px 0 18px;
+            font-size: 0.895rem;
+            color: var(--muted);
+            line-height: 1.65;
+            font-weight: 300;
+        }
+
+        li::marker {
+            color: var(--accent);
+        }
+
+        li strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ── Tables ───────────────────────────────────────────────── */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 10px 0 24px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+        }
+
+        thead {
+            background: var(--surface2);
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 16px;
+            font-family: var(--font-mono);
+            font-size: 0.67rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(42, 42, 40, 0.6);
+            color: var(--muted);
+            vertical-align: top;
+            line-height: 1.55;
+            font-weight: 300;
+        }
+
+        td:first-child {
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 0.81rem;
+            font-weight: 400;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        /* ── Callouts ─────────────────────────────────────────────── */
+        .callout {
+            display: flex;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            margin: 12px 0 20px;
+            border: 1px solid;
+            font-weight: 300;
+        }
+
+        .callout.info {
+            background: rgba(96, 165, 250, 0.06);
+            border-color: rgba(96, 165, 250, 0.2);
+            color: var(--muted);
+        }
+
+        .callout.success {
+            background: rgba(62, 207, 142, 0.06);
+            border-color: rgba(62, 207, 142, 0.2);
+            color: var(--muted);
+        }
+
+        .callout.warn {
+            background: rgba(251, 191, 36, 0.06);
+            border-color: rgba(251, 191, 36, 0.2);
+            color: var(--muted);
+        }
+
+        .callout-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            line-height: 1.6;
+        }
+
+        .callout strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* ── Flow ─────────────────────────────────────────────────── */
+        .flow {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 14px 0 22px;
+            padding: 18px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+
+        .flow-step {
+            font-family: var(--font-mono);
+            font-size: 0.73rem;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            white-space: nowrap;
+            transition: border-color 0.15s;
+        }
+
+        .flow-step.a {
+            border-color: rgba(245, 166, 35, 0.4);
+            color: var(--accent);
+            background: var(--accent-lo);
+        }
+
+        .flow-step.b {
+            border-color: rgba(62, 207, 142, 0.4);
+            color: var(--success);
+            background: rgba(62, 207, 142, 0.07);
+        }
+
+        .flow-arrow {
+            color: var(--muted2);
+            font-size: 0.8rem;
+        }
+
+        /* ── Hero ─────────────────────────────────────────────────── */
+        .hero {
+            margin-bottom: 40px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero-eyebrow {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hero-eyebrow::before {
+            content: '';
+            width: 20px;
+            height: 1px;
+            background: var(--accent);
+            opacity: 0.6;
+        }
+
+        .hero-title {
+            font-family: var(--font-mono);
+            font-size: 3rem;
+            font-weight: 600;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
+            margin-bottom: 18px;
+            color: var(--text);
+        }
+
+        .hero-title span {
+            color: var(--accent);
+        }
+
+        .hero-desc {
+            font-size: 1rem;
+            color: var(--muted);
+            line-height: 1.7;
+            max-width: 560px;
+            font-weight: 300;
+            margin-bottom: 22px;
+        }
+
+        .hero-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .hero-tag {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            letter-spacing: 0.04em;
+        }
+
+        .hero-tag.a {
+            border-color: rgba(245, 166, 35, 0.3);
+            color: var(--accent);
+            background: var(--accent-lo);
+        }
+
+        /* ── Feature cards ────────────────────────────────────────── */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin: 0 0 32px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.15s, background 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top left, var(--accent-lo) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .card:hover {
+            border-color: rgba(245, 166, 35, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card:active {
+            transform: translateY(0);
+        }
+
+        .card-icon {
+            font-size: 1.6rem;
+            margin-bottom: 12px;
+            line-height: 1;
+        }
+
+        .card-title {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .card-desc {
+            font-size: 0.795rem;
+            color: var(--muted);
+            line-height: 1.55;
+            font-weight: 300;
+        }
+
+        /* ── Provider cards ───────────────────────────────────────── */
+        .providers {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 14px;
+            margin: 14px 0 24px;
+        }
+
+        .provider {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .provider:hover {
+            border-color: var(--border2);
+        }
+
+        .pv-mark {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .pv-name {
+            font-family: var(--font-mono);
+            font-size: 0.92rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+
+        .pv-models {
+            font-size: 0.78rem;
+            color: var(--muted2);
+            line-height: 1.65;
+            margin-bottom: 12px;
+            font-weight: 300;
+        }
+
+        /* ── Architecture diagram ─────────────────────────────────── */
+        .arch {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin: 12px 0 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: var(--muted2);
+        }
+
+        .arch-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .arch-box {
+            padding: 6px 16px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--muted);
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .arch-box:hover {
+            border-color: var(--border2);
+            color: var(--text);
+        }
+
+        .arch-box.accent {
+            border-color: rgba(245, 166, 35, 0.35);
+            color: var(--accent);
+            background: var(--accent-lo);
+        }
+
+        .arch-box.dim {
+            opacity: 0.45;
+        }
+
+        .arch-sep {
+            color: var(--border2);
+            font-size: 1.1rem;
+            letter-spacing: -0.05em;
+        }
+
+        /* ── Kbd ──────────────────────────────────────────────────── */
+        kbd {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 2px 7px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface2);
+            color: var(--muted);
+        }
+
+        /* ── Mobile ───────────────────────────────────────────────── */
+        .mob-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--muted);
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        @media (max-width: 780px) {
+            .mob-menu-btn {
+                display: block;
+            }
+
+            .toc {
+                position: fixed;
+                left: 0;
+                top: var(--hdr);
+                bottom: 0;
+                z-index: 200;
+                background: var(--bg);
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                border-right: 1px solid var(--border);
+                width: 240px;
+            }
+
+            .toc.open {
+                transform: translateX(0);
+            }
+
+            .overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 150;
+            }
+
+            .overlay.open {
+                display: block;
+            }
+
+            article {
+                padding: 24px 16px 60px;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .cards {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Mobile overlay -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- ── Header ── -->
+    <header class="hdr">
+        <button class="mob-menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+        <a class="hdr-logo" href="#">
+            <span class="hdr-logo-dot"></span>
+            fusion-agent
+        </a>
+        <span class="hdr-slash">/</span>
+        <span class="hdr-sub">docs</span>
+        <div class="hdr-space"></div>
+        <span class="hdr-badge">v1.5</span>
+        <button class="theme-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle light/dark mode">
+            <span class="icon-moon">☽</span>
+            <span class="icon-sun">☀︎</span>
+        </button>
+        <a class="hdr-link" href="https://github.com/fury-r/fusion-agent" target="_blank" rel="noopener">GitHub ↗</a>
+    </header>
+
+    <div class="layout">
+
+        <!-- ── TOC sidebar ── -->
+        <nav class="toc" id="toc">
+            <div class="toc-section">Introduction</div>
+            <button class="toc-item active" data-doc="overview"><span class="toc-icon">◆</span>Overview</button>
+            <button class="toc-item" data-doc="getting-started"><span class="toc-icon">↗</span>Getting Started</button>
+
+            <div class="toc-section">Modules</div>
+            <button class="toc-item" data-doc="vibe-coder"><span class="toc-icon">⚡</span>Vibe Coder</button>
+            <button class="toc-item" data-doc="autonomous"><span class="toc-icon">◎</span>Autonomous Agent</button>
+            <button class="toc-item" data-doc="live-debugger"><span class="toc-icon">⊙</span>Live Debugger</button>
+            <button class="toc-item" data-doc="cluster-monitor"><span class="toc-icon">☸</span>Cluster Monitor</button>
+            <button class="toc-item" data-doc="sessions"><span class="toc-icon">▣</span>Session Manager</button>
+
+            <div class="toc-section">Reference</div>
+            <button class="toc-item" data-doc="providers"><span class="toc-icon">◈</span>AI Providers</button>
+            <button class="toc-item" data-doc="integrations"><span class="toc-icon">⟐</span>Integrations</button>
+            <button class="toc-item" data-doc="guardrails"><span class="toc-icon">⛨</span>Guardrails</button>
+            <button class="toc-item" data-doc="speckits"><span class="toc-icon">◫</span>Speckits</button>
+            <button class="toc-item" data-doc="rest-api"><span class="toc-icon">⊞</span>REST API</button>
+
+            <div class="toc-section">Advanced</div>
+            <button class="toc-item" data-doc="skills"><span class="toc-icon">◧</span>Skills Registry</button>
+            <button class="toc-item" data-doc="cron"><span class="toc-icon">⊛</span>Cron Scheduler</button>
+            <button class="toc-item" data-doc="webhooks"><span class="toc-icon">⇅</span>Webhooks</button>
+            <button class="toc-item" data-doc="browser"><span class="toc-icon">⬡</span>Browser &amp; Agent Bus</button>
+
+            <div class="toc-section">Deployment</div>
+            <button class="toc-item" data-doc="deployment"><span class="toc-icon">⬢</span>Docker Examples</button>
+        </nav>
+
+        <!-- ── Content ── -->
+        <main class="main" id="main">
+
+            <!-- ═══════════════════ OVERVIEW ═══════════════════ -->
+            <article data-doc="overview" class="active">
+                <div class="hero">
+                    <div class="hero-eyebrow">AI Developer Toolkit</div>
+                    <div class="hero-title">fusion<span>-agent</span></div>
+                    <div class="hero-desc">Vibe coder, live debugger, autonomous agent, and session manager — in one
+                        package. Supports OpenAI, Anthropic, and Google Gemini.</div>
+                    <div class="hero-tags">
+                        <span class="hero-tag a">TypeScript</span>
+                        <span class="hero-tag">Node.js 18+</span>
+                        <span class="hero-tag">MIT License</span>
+                        <span class="hero-tag">OpenAI · Anthropic · Gemini</span>
+                    </div>
+                </div>
+
+                <h2>Modules</h2>
+                <div class="cards">
+                    <div class="card" data-goto="vibe-coder">
+                        <div class="card-icon">⚡</div>
+                        <div class="card-title">Vibe Coder</div>
+                        <div class="card-desc">Chat with AI, auto-write files to disk in real time.</div>
+                    </div>
+                    <div class="card" data-goto="autonomous">
+                        <div class="card-icon">◎</div>
+                        <div class="card-title">Autonomous Agent</div>
+                        <div class="card-desc">Give it a requirements file and walk away.</div>
+                    </div>
+                    <div class="card" data-goto="live-debugger">
+                        <div class="card-icon">⊙</div>
+                        <div class="card-title">Live Debugger</div>
+                        <div class="card-desc">Tail logs, AI analysis, dedup, Jira &amp; GitHub.</div>
+                    </div>
+                    <div class="card" data-goto="integrations">
+                        <div class="card-icon">⟐</div>
+                        <div class="card-title">Integrations</div>
+                        <div class="card-desc">GitHub API, Jira, Copilot agent assignment.</div>
+                    </div>
+                </div>
+
+                <h2>Quick start</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div>
+                        <span class="code-lang">shell</span>
+                        <button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Install globally</span>
+npm install -g fusion-agent
+
+<span class="cm"># Set an API key (pick any provider)</span>
+<span class="cmd">export</span> OPENAI_API_KEY=sk-...
+
+<span class="cm"># Interactive vibe coder</span>
+<span class="cmd">ai-agent chat</span>
+
+<span class="cm"># Live debugger on a Docker container</span>
+<span class="cmd">ai-agent debug</span> --docker my-api --ui
+
+<span class="cm"># Web dashboard</span>
+<span class="cmd">ai-agent ui</span></code></pre>
+                </div>
+
+                <h2>Architecture</h2>
+                <div class="arch">
+                    <div class="arch-row">
+                        <div class="arch-box accent">CLI ai-agent</div>
+                        <div class="arch-box accent">Web UI ai-agent ui</div>
+                    </div>
+                    <div class="arch-sep">↓</div>
+                    <div class="arch-row">
+                        <div class="arch-box">⚡ Vibe Coder</div>
+                        <div class="arch-box">◎ Autonomous</div>
+                        <div class="arch-box">⊙ Live Debugger</div>
+                        <div class="arch-box">☸ Cluster Monitor</div>
+                    </div>
+                    <div class="arch-sep">↓</div>
+                    <div class="arch-row">
+                        <div class="arch-box dim">▣ Session Manager</div>
+                        <div class="arch-box dim">◈ AI Providers</div>
+                        <div class="arch-box dim">⟐ Integrations</div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ GETTING STARTED ═══════════════════ -->
+            <article data-doc="getting-started">
+                <h1>Getting Started</h1>
+                <p>Install, configure an API key, and run your first session in under two minutes.</p>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div><strong>Requirements:</strong> Node.js 18+, npm 9+, and an API key for at least one provider.
+                    </div>
+                </div>
+
+                <h2>Installation</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Global CLI</span>
+npm install -g fusion-agent
+
+<span class="cm"># Project dependency</span>
+npm install fusion-agent
+
+<span class="cm"># From source</span>
+git clone https://github.com/fury-r/fusion-agent.git
+cd fusion-agent
+npm install && npm run build</code></pre>
+                </div>
+
+                <h2>Configuration</h2>
+                <p>Set environment variables or create <code>.fusion-agent.json</code> in your project root.</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Pick at least one</span>
+<span class="cmd">export</span> OPENAI_API_KEY=sk-...
+<span class="cmd">export</span> ANTHROPIC_API_KEY=sk-ant-...
+<span class="cmd">export</span> GEMINI_API_KEY=AIza...</code></pre>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">json</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>{
+  <span class="st">"provider"</span>: <span class="st">"openai"</span>,
+  <span class="st">"model"</span>:    <span class="st">"gpt-4o"</span>,
+  <span class="st">"port"</span>:     <span class="nm">3000</span>,
+  <span class="st">"sessionDir"</span>: <span class="st">"~/.fusion-agent/sessions"</span>,
+  <span class="st">"github"</span>: {
+    <span class="st">"token"</span>:            <span class="st">"ghp_..."</span>,
+    <span class="st">"repoUrl"</span>:          <span class="st">"https://github.com/org/repo"</span>,
+    <span class="st">"autoAssignCopilot"</span>: <span class="kw">false</span>
+  }
+}</code></pre>
+                </div>
+
+                <h2>Config search order</h2>
+                <ol>
+                    <li><code>.fusion-agent.json</code> — current working directory</li>
+                    <li><code>.fusion-agent.yaml</code> — current working directory</li>
+                    <li><code>~/.fusion-agent/config.json</code></li>
+                    <li><code>~/.fusion-agent/config.yaml</code></li>
+                </ol>
+                <p>CLI flags and environment variables (<code>AI_PROVIDER</code>, <code>AI_MODEL</code>,
+                    <code>AI_AGENT_PORT</code>) always override the config file.</p>
+
+                <h2>Verify setup</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>ai-agent config --show    <span class="cm"># print resolved config</span>
+ai-agent chat             <span class="cm"># start interactive vibe coder</span></code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ VIBE CODER ═══════════════════ -->
+            <article data-doc="vibe-coder">
+                <h1>Vibe Coder</h1>
+                <p>An AI pair-programmer that reads your project, generates code, and automatically writes files to
+                    disk. Two modes: <strong>interactive chat</strong> and <strong>autonomous</strong>.</p>
+
+                <h2>How file generation works</h2>
+                <div class="flow">
+                    <div class="flow-step a">AI responds</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Detect ```lang:path```</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Guardrail check</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step b">Write to disk</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Record in session</div>
+                </div>
+                <p>The AI must produce code blocks in this exact format for files to be written:</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">markdown</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>```typescript:src/middleware/auth.ts
+<span class="cm">// full corrected file content here</span>
+```</code></pre>
+                </div>
+
+                <h2>CLI flags</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>ai-agent chat [options]
+
+  -p, --provider &lt;name&gt;    openai | anthropic | gemini
+  -m, --model &lt;name&gt;       e.g. gpt-4o, claude-3-5-sonnet-20241022
+  -s, --session &lt;name&gt;     create or resume a named session
+  -k, --speckit &lt;name&gt;     agent persona (default: vibe-coder)
+  -g, --guardrail &lt;rule&gt;   add a guardrail rule (repeatable)
+      --context            inject project dir structure upfront</code></pre>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Anthropic with guardrails + session resume</span>
+ai-agent chat \
+  --provider anthropic \
+  --model claude-3-5-sonnet-20241022 \
+  --session my-project \
+  --guardrail <span class="st">"Use TypeScript strict mode"</span> \
+  --guardrail <span class="st">"No inline styles"</span> \
+  --context</code></pre>
+                </div>
+
+                <h2>In-session commands</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>/exit</td>
+                                <td>End session and save to disk</td>
+                            </tr>
+                            <tr>
+                                <td>/save</td>
+                                <td>Save without ending the session</td>
+                            </tr>
+                            <tr>
+                                <td>/turns</td>
+                                <td>Show full conversation history</td>
+                            </tr>
+                            <tr>
+                                <td>/context</td>
+                                <td>Inject current project directory tree</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Programmatic — session-based</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { AgentCLI, createGuardrail } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> agent = <span class="kw">new</span> <span class="ty">AgentCLI</span>({ provider: <span class="st">'openai'</span> });
+
+<span class="kw">const</span> session = agent.createSession({
+  name:       <span class="st">'my-project'</span>,
+  speckit:    <span class="st">'vibe-coder'</span>,
+  projectDir: process.cwd(),
+  guardrails: [
+    createGuardrail(<span class="st">'custom'</span>,     <span class="st">'Use TypeScript strict mode'</span>),
+    createGuardrail(<span class="st">'deny-paths'</span>, [<span class="st">'secrets/'</span>, <span class="st">'.env'</span>]),
+  ],
+});
+
+<span class="cm">// Streaming turn</span>
+<span class="kw">const</span> turn = <span class="kw">await</span> session.chat(<span class="st">'Add JWT authentication middleware'</span>, {
+  stream:  <span class="kw">true</span>,
+  onChunk: (chunk) =&gt; process.stdout.write(chunk),
+});
+
+console.log(<span class="st">'Files written:'</span>, turn.fileChanges?.map(f =&gt; f.filePath));
+
+<span class="cm">// Revert all changes from this turn</span>
+session.revertTurnChanges(turn.id);
+
+<span class="cm">// Persist session</span>
+agent.sessionManager.persistSession(session);</code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ AUTONOMOUS ═══════════════════ -->
+            <article data-doc="autonomous">
+                <h1>Autonomous Agent</h1>
+                <p>Reads a requirements file, implements it step-by-step by writing files to disk, detects loops, and
+                    requests human guidance via a <strong>Human-in-the-Loop (HIL)</strong> modal when stuck.</p>
+
+                <h2>Execution flow</h2>
+                <div class="flow">
+                    <div class="flow-step a">Read requirements</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Plan steps</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Implement step N</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Write files</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Loop detect?</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step b">COMPLETE</div>
+                </div>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>The agent stops when it outputs <code>REQUIREMENTS_COMPLETE</code>, hits the step/time limit,
+                        or you stop it manually.</div>
+                </div>
+
+                <h2>Programmatic usage</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { AgentCLI, AutonomousVibeAgent } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> agent   = <span class="kw">new</span> <span class="ty">AgentCLI</span>({ provider: <span class="st">'openai'</span> });
+<span class="kw">const</span> session = agent.createSession({
+  name:    <span class="st">'auto-build'</span>,
+  speckit: <span class="st">'vibe-coder'</span>,
+  projectDir: process.cwd(),
+});
+
+<span class="kw">const</span> auto = <span class="kw">new</span> <span class="ty">AutonomousVibeAgent</span>(session, {
+  requirementsFile:  <span class="st">'./REQUIREMENTS.md'</span>,
+  maxSteps:          <span class="nm">50</span>,
+  timeLimitSeconds:  <span class="nm">600</span>,
+  rules: [
+    { id: <span class="st">'ts'</span>,       description: <span class="st">'All files must be TypeScript'</span> },
+    { id: <span class="st">'no-class'</span>, description: <span class="st">'Use functional patterns, no classes'</span> },
+  ],
+});
+
+auto.on(<span class="st">'step'</span>,     (step) =&gt; console.log(<span class="st">`Step ${step.stepNumber}`</span>, step.filesChanged));
+auto.on(<span class="st">'complete'</span>,  (steps) =&gt; { console.log(<span class="st">`✓ Done in ${steps.length} steps`</span>); });
+auto.on(<span class="st">'hil'</span>,      (req) =&gt;  console.log(<span class="st">'HIL:'</span>, req.confusionSummary));
+auto.on(<span class="st">'error'</span>,    (err) =&gt;  console.error(err.message));
+
+<span class="kw">await</span> auto.run();</code></pre>
+                </div>
+
+                <h2>Inline requirements</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">const</span> auto = <span class="kw">new</span> <span class="ty">AutonomousVibeAgent</span>(session, {
+  requirementsContent: <span class="st">`
+## Build a REST API
+- Express server on port 3000
+- GET /users returns list of users
+- POST /users creates a user
+- Use TypeScript, Zod for validation
+`</span>,
+  maxSteps: <span class="nm">20</span>,
+});</code></pre>
+                </div>
+
+                <h2>Configuration</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>requirementsFile</td>
+                                <td>string</td>
+                                <td>Path to .md or .txt file</td>
+                            </tr>
+                            <tr>
+                                <td>requirementsContent</td>
+                                <td>string</td>
+                                <td>Inline requirements text</td>
+                            </tr>
+                            <tr>
+                                <td>rules</td>
+                                <td>Rule[]</td>
+                                <td>Constraints injected into every step</td>
+                            </tr>
+                            <tr>
+                                <td>timeLimitSeconds</td>
+                                <td>number</td>
+                                <td>0 = no time limit</td>
+                            </tr>
+                            <tr>
+                                <td>maxSteps</td>
+                                <td>number</td>
+                                <td>Default: 50</td>
+                            </tr>
+                            <tr>
+                                <td>stuckThreshold</td>
+                                <td>number</td>
+                                <td>No-file-change steps before HIL fires</td>
+                            </tr>
+                            <tr>
+                                <td>loopSimilarityThreshold</td>
+                                <td>number</td>
+                                <td>Jaccard similarity ≥ N triggers loop (0–1)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ LIVE DEBUGGER ═══════════════════ -->
+            <article data-doc="live-debugger">
+                <h1>Live Debugger</h1>
+                <p>Tails log sources (files, Docker containers, spawned processes), batches lines, calls AI for
+                    analysis, deduplicates repeated errors, and streams results to the Web UI via Socket.IO. Three
+                    post-analysis actions: <strong>Create Jira Issue</strong>, <strong>Apply Git Fix</strong>,
+                    <strong>Assign to Copilot</strong>.</p>
+
+                <h2>Pipeline</h2>
+                <div class="flow">
+                    <div class="flow-step a">Log source</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Level filter</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Batch buffer</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Deduplicate</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">AI analysis</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step b">Web UI + Notify</div>
+                </div>
+
+                <h2>Log sources</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Flag</th>
+                                <th>Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>File tail</td>
+                                <td>--file</td>
+                                <td><code>--file /var/log/app.log</code></td>
+                            </tr>
+                            <tr>
+                                <td>Docker container</td>
+                                <td>--docker</td>
+                                <td><code>--docker my-api-container</code></td>
+                            </tr>
+                            <tr>
+                                <td>Spawned process</td>
+                                <td>--cmd</td>
+                                <td><code>--cmd "node server.js"</code></td>
+                            </tr>
+                            <tr>
+                                <td>HTTP poll</td>
+                                <td>programmatic</td>
+                                <td>connectToService({ type: 'http', url, intervalMs })</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>File log</h3>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Tail a log file, notify Slack on error</span>
+<span class="cmd">ai-agent debug</span> \
+  --file /var/log/api.log \
+  --log-level ERROR,FATAL \
+  --batch 20 \
+  --notify-slack https://hooks.slack.com/services/XXX/YYY/ZZZ \
+  --ui --port 3000</code></pre>
+                </div>
+
+                <h3>Docker container</h3>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Attach to a running Docker container by name or ID</span>
+<span class="cmd">ai-agent debug</span> \
+  --docker my-api \
+  --log-level ERROR,WARN \
+  --batch 15 \
+  --session my-api-prod \
+  --ui --port 3000
+
+<span class="cm"># Multiple containers — start separate debuggers</span>
+<span class="cmd">ai-agent debug</span> --docker api-service --port 3000 &amp;
+<span class="cmd">ai-agent debug</span> --docker worker-service --port 3001 &amp;</code></pre>
+                </div>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>The Docker connector runs <code>docker logs -f &lt;container&gt;</code> internally. The Docker
+                        CLI must be available in PATH and the container must be running.</div>
+                </div>
+
+                <h3>Spawned process</h3>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Spawn a command and capture its stdout + stderr</span>
+<span class="cmd">ai-agent debug</span> --cmd <span class="st">"node dist/server.js"</span></code></pre>
+                </div>
+
+                <h2>All CLI flags</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cmd">ai-agent debug</span> [options]
+
+  -f, --file &lt;path&gt;          watch a log file
+  -d, --docker &lt;name&gt;        attach to Docker stdout/stderr
+  -c, --cmd &lt;command&gt;        spawn a process and capture output
+  -p, --provider &lt;name&gt;      openai | anthropic | gemini
+  -m, --model &lt;name&gt;         model name override
+  -s, --session &lt;name&gt;       named session (saved to disk)
+      --log-level &lt;lvls&gt;     comma-separated: ERROR,FATAL,WARN,INFO
+      --batch &lt;n&gt;            lines per AI call (default: 20)
+      --retry &lt;n&gt;            max retries per AI call (default: 3)
+      --notify-slack &lt;url&gt;   Slack incoming webhook URL
+      --notify-teams &lt;url&gt;   Microsoft Teams webhook URL
+      --ui                   launch web dashboard
+      --port &lt;port&gt;          dashboard port (default: 3000)</code></pre>
+                </div>
+
+                <h2>Log level filtering</h2>
+                <p>Only lines that contain <strong>at least one</strong> of the specified level tokens are forwarded to
+                    the AI. Matching is case-insensitive.</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Only send ERROR and FATAL lines for AI analysis</span>
+<span class="cmd">ai-agent debug</span> --docker my-api --log-level ERROR,FATAL
+
+<span class="cm"># Include warnings too</span>
+<span class="cmd">ai-agent debug</span> --docker my-api --log-level ERROR,FATAL,WARN</code></pre>
+                </div>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>Omitting <code>--log-level</code> passes all lines to the AI (no filter).</div>
+                </div>
+
+                <h2>Notifications</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Channel</th>
+                                <th>CLI flag</th>
+                                <th>Programmatic key</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Slack</td>
+                                <td>--notify-slack &lt;webhook-url&gt;</td>
+                                <td>notifications.slack.webhookUrl</td>
+                            </tr>
+                            <tr>
+                                <td>Microsoft Teams</td>
+                                <td>--notify-teams &lt;webhook-url&gt;</td>
+                                <td>notifications.teams.webhookUrl</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Each notification includes the full AI analysis text and a link to the Web UI dashboard.</p>
+
+                <h2>Programmatic usage</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { AgentCLI, LiveDebugger } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> agent   = <span class="kw">new</span> <span class="ty">AgentCLI</span>({ provider: <span class="st">'openai'</span> });
+<span class="kw">const</span> session = agent.createSession({ name: <span class="st">'prod'</span>, speckit: <span class="st">'debugger'</span> });
+
+<span class="kw">const</span> dbg = <span class="kw">new</span> <span class="ty">LiveDebugger</span>({
+  session,
+  batchSize:      <span class="nm">15</span>,
+  maxWaitSeconds: <span class="nm">30</span>,
+  logLevels:      [<span class="st">'ERROR'</span>, <span class="st">'FATAL'</span>],
+  notifications: {
+    slack: { enabled: <span class="kw">true</span>, webhookUrl: process.env.SLACK_WEBHOOK },
+    teams: { enabled: <span class="kw">true</span>, webhookUrl: process.env.TEAMS_WEBHOOK },
+  },
+  onAnalysis: (analysis, meta) =&gt; {
+    console.log(<span class="st">'Analysis:'</span>, analysis);
+    console.log(<span class="st">'Repeats:'</span>,  meta?.repeatCount);
+    console.log(<span class="st">'Fingerprint:'</span>, meta?.errorFingerprint);
+  },
+});
+
+dbg.on(<span class="st">'error'</span>, (err) =&gt; console.error(err.message));
+
+<span class="cm">// Pick one source:</span>
+dbg.watchLogFile(<span class="st">'/var/log/app.log'</span>, <span class="nm">50</span>);
+<span class="cm">// dbg.connectToService({ type: 'docker',  container: 'my-api' });</span>
+<span class="cm">// dbg.connectToService({ type: 'process', command: 'node server.js' });</span>
+<span class="cm">// dbg.connectToService({ type: 'http',    url: 'http://...',  intervalMs: 5000 });</span>
+
+process.on(<span class="st">'SIGINT'</span>, () =&gt; dbg.stop());</code></pre>
+                </div>
+
+                <h2>Web UI — analysis cards</h2>
+                <p>Each AI analysis appears as a card in the Live Debugger panel. Every card has three action buttons:
+                </p>
+                <div class="flow">
+                    <div class="flow-step a">Analysis card</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Create Jira Issue</div>
+                    <span class="flow-arrow">|</span>
+                    <div class="flow-step">Apply Git Fix</div>
+                    <span class="flow-arrow">|</span>
+                    <div class="flow-step b">Assign to Copilot</div>
+                </div>
+
+                <h3>Create Jira Issue</h3>
+                <p>Opens a modal pre-populated with the AI analysis. Required fields:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Required</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Jira base URL</td>
+                                <td>✓</td>
+                                <td>https://your-org.atlassian.net</td>
+                            </tr>
+                            <tr>
+                                <td>Email</td>
+                                <td>✓</td>
+                                <td>Atlassian account email</td>
+                            </tr>
+                            <tr>
+                                <td>API token</td>
+                                <td>✓</td>
+                                <td>Generate at id.atlassian.com</td>
+                            </tr>
+                            <tr>
+                                <td>Project key</td>
+                                <td>✓</td>
+                                <td>e.g. ENG, OPS, PLAT</td>
+                            </tr>
+                            <tr>
+                                <td>Issue type</td>
+                                <td>✓</td>
+                                <td>Bug · Task · Story · Incident</td>
+                            </tr>
+                            <tr>
+                                <td>Priority</td>
+                                <td>—</td>
+                                <td>Highest · High · Medium · Low</td>
+                            </tr>
+                            <tr>
+                                <td>Labels</td>
+                                <td>—</td>
+                                <td>comma-separated: auto-detected,live-debugger</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>Jira credentials are sent to the backend in the POST body and are never stored to disk.
+                        Configure them in <code>.fusion-agent.json</code> to have the modal pre-filled on load.</div>
+                </div>
+
+                <h3>Apply Git Fix — 3-step wizard</h3>
+                <p>AI generates corrected file contents; the wizard lets you review before committing.</p>
+                <div class="flow">
+                    <div class="flow-step a">Step 1 — Preview diffs</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Step 2 — Review &amp; confirm</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step b">Step 3 — Commit to GitHub API</div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Config field</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GitHub token</td>
+                                <td>✓</td>
+                                <td>PAT with <code>repo</code> scope</td>
+                            </tr>
+                            <tr>
+                                <td>Remote URL</td>
+                                <td>✓</td>
+                                <td>https://github.com/org/repo</td>
+                            </tr>
+                            <tr>
+                                <td>Branch</td>
+                                <td>—</td>
+                                <td>Default: fusion-agent/auto-fix</td>
+                            </tr>
+                            <tr>
+                                <td>Commit message</td>
+                                <td>—</td>
+                                <td>Auto-generated from AI analysis summary</td>
+                            </tr>
+                            <tr>
+                                <td>Base branch</td>
+                                <td>—</td>
+                                <td>Default: main</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="callout warn"><span class="callout-icon">⚠</span>
+                    <div>The <strong>Apply Git Fix</strong> button is disabled (greyed out) when
+                        <code>autoAssignCopilot: true</code> in config — to avoid competing pull requests with the
+                        Copilot-assigned issue.</div>
+                </div>
+
+                <h3>Assign to Copilot</h3>
+                <p>Creates a GitHub issue and assigns the <strong>Copilot coding agent</strong> to it. The issue body is
+                    the full AI analysis.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Config field</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GitHub token</td>
+                                <td>✓</td>
+                                <td>PAT with <code>issues:write</code> scope</td>
+                            </tr>
+                            <tr>
+                                <td>Repo URL</td>
+                                <td>✓</td>
+                                <td>https://github.com/org/repo</td>
+                            </tr>
+                            <tr>
+                                <td>autoAssignCopilot</td>
+                                <td>—</td>
+                                <td>Set true to enable the button; disables Apply Git Fix</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="callout success"><span class="callout-icon">✓</span>
+                    <div>After assignment the analysis card shows a <strong>Copilot Blocked</strong> badge — a visual
+                        reminder that Git Fix is disabled while Copilot is working on the issue.</div>
+                </div>
+
+                <h2>Events</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Payload</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>log</td>
+                                <td>(line: string)</td>
+                                <td>Raw log line received</td>
+                            </tr>
+                            <tr>
+                                <td>analysis</td>
+                                <td>(text, meta)</td>
+                                <td>AI analysis complete</td>
+                            </tr>
+                            <tr>
+                                <td>analysis-chunk</td>
+                                <td>(chunk)</td>
+                                <td>Streaming token</td>
+                            </tr>
+                            <tr>
+                                <td>error</td>
+                                <td>(err)</td>
+                                <td>Error — debugger keeps running</td>
+                            </tr>
+                            <tr>
+                                <td>exit</td>
+                                <td>(code)</td>
+                                <td>Watched process exited (process source only)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ SESSIONS ═══════════════════ -->
+            <article data-doc="sessions">
+                <h1>Session Manager</h1>
+                <p>Sessions persist conversation history, file changes, and debugger metadata to disk. They can be
+                    resumed, exported, and deleted.</p>
+
+                <h2>Programmatic</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { AgentCLI } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> agent = <span class="kw">new</span> <span class="ty">AgentCLI</span>({ provider: <span class="st">'openai'</span> });
+<span class="kw">const</span> sm    = agent.sessionManager;
+
+<span class="cm">// Create + chat</span>
+<span class="kw">const</span> session = agent.createSession({ name: <span class="st">'my-project'</span> });
+<span class="kw">await</span> session.chat(<span class="st">'Hello'</span>);
+sm.persistSession(session);
+
+<span class="cm">// List all sessions</span>
+<span class="kw">const</span> all = sm.listSessions();  <span class="cm">// SessionMeta[]</span>
+
+<span class="cm">// Resume an existing session</span>
+<span class="kw">const</span> loaded = sm.loadSession(all[<span class="nm">0</span>].id);
+loaded.getTurns().forEach(t =&gt; console.log(t.userMessage));
+
+<span class="cm">// Export to JSON string</span>
+<span class="kw">const</span> json = sm.exportSession(all[<span class="nm">0</span>].id);
+
+<span class="cm">// Delete</span>
+sm.deleteSession(all[<span class="nm">0</span>].id);</code></pre>
+                </div>
+
+                <h2>Turn shape</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">interface</span> <span class="ty">SessionTurn</span> {
+  id:               <span class="ty">string</span>;
+  timestamp:        <span class="ty">string</span>;          <span class="cm">// ISO 8601</span>
+  userMessage:      <span class="ty">string</span>;
+  assistantMessage: <span class="ty">string</span>;
+  fileChanges?: {
+    filePath:        <span class="ty">string</span>;
+    previousContent: <span class="ty">string</span> | <span class="kw">null</span>;  <span class="cm">// null = new file</span>
+    newContent:      <span class="ty">string</span>;
+  }[];
+  usage?: {
+    promptTokens:     <span class="ty">number</span>;
+    completionTokens: <span class="ty">number</span>;
+    totalTokens:      <span class="ty">number</span>;
+  };
+  debuggerMeta?: {
+    matchedLogLines:  <span class="ty">string</span>[];
+    promptSentAt:     <span class="ty">string</span>;
+    repeatCount:      <span class="ty">number</span>;
+    errorFingerprint: <span class="ty">string</span>;
+  };
+}</code></pre>
+                </div>
+
+                <h2>REST API</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/sessions</td>
+                                <td>List all sessions</td>
+                            </tr>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/sessions/:id</td>
+                                <td>Get session with all turns</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/sessions</td>
+                                <td>Create a new session</td>
+                            </tr>
+                            <tr>
+                                <td>DELETE</td>
+                                <td>/api/sessions/:id</td>
+                                <td>Delete one session</td>
+                            </tr>
+                            <tr>
+                                <td>DELETE</td>
+                                <td>/api/sessions</td>
+                                <td>Delete all sessions</td>
+                            </tr>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/sessions/:id/export</td>
+                                <td>Export session as JSON</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ PROVIDERS ═══════════════════ -->
+            <article data-doc="providers">
+                <h1>AI Providers</h1>
+                <p>fusion-agent supports three AI providers. Switch per session or globally in config.</p>
+
+                <div class="providers">
+                    <div class="provider">
+                        <div class="pv-mark">🟢</div>
+                        <div class="pv-name">OpenAI</div>
+                        <div class="pv-models">gpt-4o · gpt-4o-mini<br>gpt-4-turbo · o1-mini</div>
+                        <div class="code-wrap" style="margin:0">
+                            <div class="code-header">
+                                <div class="code-dots">
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                            </div>
+                            <pre><code>export OPENAI_API_KEY=sk-...</code></pre>
+                        </div>
+                    </div>
+                    <div class="provider">
+                        <div class="pv-mark">🟠</div>
+                        <div class="pv-name">Anthropic</div>
+                        <div class="pv-models">claude-3-5-sonnet-20241022<br>claude-3-haiku-20240307</div>
+                        <div class="code-wrap" style="margin:0">
+                            <div class="code-header">
+                                <div class="code-dots">
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                            </div>
+                            <pre><code>export ANTHROPIC_API_KEY=sk-ant-...</code></pre>
+                        </div>
+                    </div>
+                    <div class="provider">
+                        <div class="pv-mark">🔵</div>
+                        <div class="pv-name">Google Gemini</div>
+                        <div class="pv-models">gemini-1.5-pro · gemini-1.5-flash<br>gemini-2.0-flash</div>
+                        <div class="code-wrap" style="margin:0">
+                            <div class="code-header">
+                                <div class="code-dots">
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                    <div class="code-dot"></div>
+                                </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                            </div>
+                            <pre><code>export GEMINI_API_KEY=AIza...</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>Switching provider</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">const</span> agent = <span class="kw">new</span> <span class="ty">AgentCLI</span>({
+  provider: <span class="st">'anthropic'</span>,
+  model:    <span class="st">'claude-3-5-sonnet-20241022'</span>,
+  apiKey:   process.env.ANTHROPIC_API_KEY,
+});</code></pre>
+                </div>
+
+                <h2>Streaming</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">const</span> turn = <span class="kw">await</span> session.chat(<span class="st">'Refactor this file'</span>, {
+  stream:  <span class="kw">true</span>,
+  onChunk: (chunk) =&gt; process.stdout.write(chunk),
+});</code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ INTEGRATIONS ═══════════════════ -->
+            <article data-doc="integrations">
+                <h1>Integrations</h1>
+                <p>fusion-agent ships built-in integrations for GitHub (direct API commits + Copilot agent assignment)
+                    and Jira. Configure in <code>.fusion-agent.json</code> or pass programmatically.</p>
+
+                <h2>GitHub — direct API commits</h2>
+                <p>Commits AI-proposed fixes directly to GitHub via the Git Data API. No local clone required.</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { GitHubPatcher } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> patcher = <span class="kw">new</span> <span class="ty">GitHubPatcher</span>({
+  token:     process.env.GITHUB_TOKEN,
+  remoteUrl: <span class="st">'https://github.com/org/my-repo'</span>,
+  branch:    <span class="st">'fusion-agent/auto-fix'</span>,
+});
+
+<span class="kw">const</span> result = <span class="kw">await</span> patcher.applyAndCommit({
+  files: {
+    <span class="st">'src/services/user.ts'</span>: newContent,
+    <span class="st">'src/utils/auth.ts'</span>:    otherContent,
+  },
+  commitMessage:    <span class="st">'fix: resolve null-pointer in UserService'</span>,
+  pullRequestTitle: <span class="st">'Auto-fix from Live Debugger'</span>,
+  baseBranch:       <span class="st">'main'</span>,
+});
+
+console.log(<span class="st">'Branch:'</span>, result.branch);
+console.log(<span class="st">'Commit:'</span>, result.commitSha);
+console.log(<span class="st">'PR URL:'</span>, result.pullRequestUrl);</code></pre>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Required</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>token</td>
+                                <td>✓</td>
+                                <td>GitHub PAT with <code>repo</code> scope</td>
+                            </tr>
+                            <tr>
+                                <td>remoteUrl</td>
+                                <td>✓</td>
+                                <td>https://github.com/owner/repo</td>
+                            </tr>
+                            <tr>
+                                <td>branch</td>
+                                <td>—</td>
+                                <td>Target branch (default: fusion-agent/auto-fix)</td>
+                            </tr>
+                            <tr>
+                                <td>baseBranch</td>
+                                <td>—</td>
+                                <td>Branch to open PR against (default: main)</td>
+                            </tr>
+                            <tr>
+                                <td>pullRequestTitle</td>
+                                <td>—</td>
+                                <td>If set, a PR is opened automatically</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>GitHub — local clone commit</h2>
+                <p>Applies patches using the local filesystem and Git CLI. Requires a checked-out repo and Git in PATH.
+                </p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { GitPatchApplier } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> applier = <span class="kw">new</span> <span class="ty">GitPatchApplier</span>({
+  repoDir:  process.cwd(),
+  branch:   <span class="st">'fusion-agent/auto-fix'</span>,
+  remote:   <span class="st">'origin'</span>,
+  pushAfterCommit: <span class="kw">true</span>,
+});
+
+<span class="kw">await</span> applier.applyAndCommit({
+  files:         { <span class="st">'src/utils/auth.ts'</span>: newContent },
+  commitMessage: <span class="st">'fix: auth token expiry bug'</span>,
+});</code></pre>
+                </div>
+
+                <h2>Jira</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { JiraClient } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> jira = <span class="kw">new</span> <span class="ty">JiraClient</span>({
+  baseUrl:    <span class="st">'https://your-org.atlassian.net'</span>,
+  email:      <span class="st">'you@example.com'</span>,
+  apiToken:   process.env.JIRA_TOKEN,
+  projectKey: <span class="st">'ENG'</span>,
+  issueType:  <span class="st">'Bug'</span>,
+});
+
+<span class="kw">const</span> issue = <span class="kw">await</span> jira.createIssue({
+  summary:     <span class="st">'NullPointerException in UserService.getById'</span>,
+  description: aiAnalysisText,
+  priority:    <span class="st">'High'</span>,
+  labels:      [<span class="st">'auto-detected'</span>, <span class="st">'live-debugger'</span>],
+});
+
+console.log(<span class="st">'Created:'</span>, issue.key, issue.url);</code></pre>
+                </div>
+                <p>To pre-configure Jira in your config file (so the Web UI modal is pre-filled):</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">json</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>{
+  <span class="st">"jira"</span>: {
+    <span class="st">"baseUrl"</span>:    <span class="st">"https://your-org.atlassian.net"</span>,
+    <span class="st">"email"</span>:      <span class="st">"you@example.com"</span>,
+    <span class="st">"apiToken"</span>:   <span class="st">"&lt;jira-api-token&gt;"</span>,
+    <span class="st">"projectKey"</span>: <span class="st">"ENG"</span>,
+    <span class="st">"issueType"</span>:  <span class="st">"Bug"</span>
+  }
+}</code></pre>
+                </div>
+
+                <h2>GitHub Copilot Agent</h2>
+                <p>Creates a GitHub issue and assigns <strong>@copilot</strong> as the assignee. The issue body is the
+                    full AI analysis text from the debugger.</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { GitHubClient } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> gh = <span class="kw">new</span> <span class="ty">GitHubClient</span>({
+  token:   process.env.GITHUB_TOKEN,
+  repoUrl: <span class="st">'https://github.com/org/my-repo'</span>,
+});
+
+<span class="kw">const</span> result = <span class="kw">await</span> gh.createIssueForCopilot(
+  <span class="st">'[Auto] Fix NullPointerException in UserService'</span>,
+  aiAnalysisText,
+  [<span class="st">'bug'</span>, <span class="st">'auto-detected'</span>],
+);
+
+console.log(<span class="st">'Issue #'</span> + result.issueNumber, result.issueUrl);
+console.log(<span class="st">'Copilot assigned:'</span>, result.copilotAssigned);</code></pre>
+                </div>
+                <p>Enable auto-assignment in config to activate the <strong>Assign to Copilot</strong> button in the Web
+                    UI:</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">json</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>{
+  <span class="st">"github"</span>: {
+    <span class="st">"token"</span>:             <span class="st">"ghp_..."</span>,
+    <span class="st">"repoUrl"</span>:           <span class="st">"https://github.com/org/repo"</span>,
+    <span class="st">"autoAssignCopilot"</span>: <span class="kw">true</span>
+  }
+}</code></pre>
+                </div>
+                <div class="callout warn"><span class="callout-icon">⚠</span>
+                    <div>When <code>autoAssignCopilot</code> is <code>true</code>, the <strong>Apply Git Fix</strong>
+                        button on every analysis card is disabled with a <em>Copilot Blocked</em> badge — to avoid
+                        competing pull requests.</div>
+                </div>
+                <p>Guardrail rules to control what Copilot issues are allowed:</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rule</th>
+                                <th>Effect</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>deny-keyword:password</td>
+                                <td>Block if issue title or body contains the word</td>
+                            </tr>
+                            <tr>
+                                <td>require-label:bug</td>
+                                <td>Issue must include the <em>bug</em> label</td>
+                            </tr>
+                            <tr>
+                                <td>max-title-length:120</td>
+                                <td>Title must be ≤ 120 characters</td>
+                            </tr>
+                            <tr>
+                                <td>max-body-length:5000</td>
+                                <td>Body must be ≤ 5000 characters</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ GUARDRAILS ═══════════════════ -->
+            <article data-doc="guardrails">
+                <h1>Guardrails</h1>
+                <p>Safety rules that gate file writes, git commits, and issue creation. Evaluated before every
+                    irreversible action.</p>
+
+                <h2>File and git rules</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rule format</th>
+                                <th>Effect</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>allow-path:src/</td>
+                                <td>Only files under src/ may be modified</td>
+                            </tr>
+                            <tr>
+                                <td>deny-path:secrets/</td>
+                                <td>Files under secrets/ are never touched</td>
+                            </tr>
+                            <tr>
+                                <td>max-files:5</td>
+                                <td>At most 5 files per commit/turn</td>
+                            </tr>
+                            <tr>
+                                <td>Any other string</td>
+                                <td>Injected as an AI constraint in the system prompt</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Copilot issue rules</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rule format</th>
+                                <th>Effect</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>deny-keyword:password</td>
+                                <td>Block if title or body contains the word</td>
+                            </tr>
+                            <tr>
+                                <td>require-label:bug</td>
+                                <td>Issue must include the bug label</td>
+                            </tr>
+                            <tr>
+                                <td>max-title-length:120</td>
+                                <td>Title must be ≤ 120 chars</td>
+                            </tr>
+                            <tr>
+                                <td>max-body-length:5000</td>
+                                <td>Body must be ≤ 5000 chars</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Adding guardrails</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>ai-agent chat \
+  --guardrail <span class="st">"deny-path:secrets/"</span> \
+  --guardrail <span class="st">"max-files:5"</span> \
+  --guardrail <span class="st">"Use TypeScript strict mode"</span></code></pre>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { createGuardrail } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> session = agent.createSession({
+  guardrails: [
+    createGuardrail(<span class="st">'custom'</span>,     <span class="st">'Use TypeScript strict mode'</span>),
+    createGuardrail(<span class="st">'deny-paths'</span>, [<span class="st">'secrets/'</span>, <span class="st">'.env'</span>, <span class="st">'*.pem'</span>]),
+    createGuardrail(<span class="st">'max-files'</span>,  <span class="nm">5</span>),
+  ],
+});</code></pre>
+                </div>
+                <div class="callout success"><span class="callout-icon">✓</span>
+                    <div>Guardrail violations throw an error with a human-readable message explaining which rule was
+                        broken and why.</div>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ SPECKITS ═══════════════════ -->
+            <article data-doc="speckits">
+                <h1>Speckits</h1>
+                <p>Prebuilt agent personas — a name, description, system prompt, and example prompts. Set when creating
+                    a session; they shape the AI's behaviour for the entire conversation.</p>
+
+                <h2>Built-in speckits</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Best for</th>
+                                <th>Example prompt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>vibe-coder</td>
+                                <td>Coding, file generation, refactoring</td>
+                                <td>"Add JWT auth middleware"</td>
+                            </tr>
+                            <tr>
+                                <td>debugger</td>
+                                <td>Log analysis, root cause, code fixes</td>
+                                <td>"Why is my service OOMKilled?"</td>
+                            </tr>
+                            <tr>
+                                <td>code-review</td>
+                                <td>PR review, security, performance</td>
+                                <td>"Review this route for SQL injection"</td>
+                            </tr>
+                            <tr>
+                                <td>cluster-debugger</td>
+                                <td>Kubernetes / multi-service remediation</td>
+                                <td>"CrashLoopBackOff in payments pod"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Using a speckit</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>ai-agent chat --speckit debugger</code></pre>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">const</span> session = agent.createSession({ speckit: <span class="st">'code-review'</span> });</code></pre>
+                </div>
+
+                <h2>Custom speckits</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { registerSpeckit } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+registerSpeckit({
+  name:        <span class="st">'security-auditor'</span>,
+  description: <span class="st">'Reviews code for OWASP Top 10 vulnerabilities'</span>,
+  systemPrompt: <span class="st">`You are a security expert specialising in web application security.
+When reviewing code:
+1. Check for injection vulnerabilities (SQL, XSS, SSTI)
+2. Verify authentication and authorisation
+3. Look for insecure direct object references
+
+For every vulnerability, provide:
+- Severity: Critical / High / Medium / Low
+- CWE reference
+- Minimal PoC exploit
+- Exact fix with \`\`\`language:filepath\`\`\` blocks`</span>,
+  examples: [
+    <span class="st">'Review this Express route for SQL injection'</span>,
+    <span class="st">'Is this JWT verification correct?'</span>,
+  ],
+});</code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ REST API ═══════════════════ -->
+            <article data-doc="rest-api">
+                <h1>REST API</h1>
+                <p>The Web UI server (<code>ai-agent ui</code>) exposes a REST API and Socket.IO. Base:
+                    <code>http://localhost:3000</code>.</p>
+
+                <h2>Sessions</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/sessions</td>
+                                <td>List all sessions</td>
+                            </tr>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/sessions/:id</td>
+                                <td>Full session with turns</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/sessions</td>
+                                <td>Create session — body: { name, speckit?, provider? }</td>
+                            </tr>
+                            <tr>
+                                <td>DELETE</td>
+                                <td>/api/sessions/:id</td>
+                                <td>Delete one session</td>
+                            </tr>
+                            <tr>
+                                <td>DELETE</td>
+                                <td>/api/sessions</td>
+                                <td>Delete all sessions</td>
+                            </tr>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/sessions/:id/export</td>
+                                <td>Full JSON export</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Live Debugger</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/debugger/:id/jira</td>
+                                <td>Create Jira issue from turn</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/debugger/:id/git-fix</td>
+                                <td>Apply AI fix to GitHub</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/debugger/:id/preview-git-fix</td>
+                                <td>Preview file diffs before applying</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/debugger/:id/copilot-issue</td>
+                                <td>Create + assign Copilot issue</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Socket.IO events</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Direction</th>
+                                <th>Key fields</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>debugger:subscribe</td>
+                                <td>Client → Server</td>
+                                <td>{ sessionId }</td>
+                            </tr>
+                            <tr>
+                                <td>debugger:log</td>
+                                <td>Server → Client</td>
+                                <td>{ sessionId, line }</td>
+                            </tr>
+                            <tr>
+                                <td>debugger:analysis</td>
+                                <td>Server → Client</td>
+                                <td>{ sessionId, analysis, meta }</td>
+                            </tr>
+                            <tr>
+                                <td>debugger:error-repeated</td>
+                                <td>Server → Client</td>
+                                <td>{ turnId, repeatCount, lastSeen }</td>
+                            </tr>
+                            <tr>
+                                <td>vibe:chat</td>
+                                <td>Client → Server</td>
+                                <td>{ sessionId, message }</td>
+                            </tr>
+                            <tr>
+                                <td>vibe:chunk</td>
+                                <td>Server → Client</td>
+                                <td>{ sessionId, chunk }</td>
+                            </tr>
+                            <tr>
+                                <td>vibe:file-changed</td>
+                                <td>Server → Client</td>
+                                <td>{ sessionId, filePath, content }</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Example: preview git fix</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">const</span> res = <span class="kw">await</span> fetch(<span class="st">`/api/debugger/${sessionId}/preview-git-fix`</span>, {
+  method:  <span class="st">'POST'</span>,
+  headers: { <span class="st">'Content-Type'</span>: <span class="st">'application/json'</span> },
+  body:    JSON.stringify({ turnId: <span class="st">'turn-abc123'</span> }),
+});
+
+<span class="cm">// { changes: [{ filePath, before, after }] }</span>
+<span class="kw">const</span> { changes } = <span class="kw">await</span> res.json();
+changes.forEach(c =&gt;
+  console.log(c.filePath, c.before === <span class="kw">null</span> ? <span class="st">'NEW'</span> : <span class="st">'MODIFIED'</span>)
+);</code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ CLUSTER MONITOR ═══════════════════ -->
+            <article data-doc="cluster-monitor">
+                <h1>Cluster Monitor</h1>
+                <p>Watches a Kubernetes cluster (or a plain set of Docker services) for rule violations, calls the AI to
+                    diagnose problems, and optionally applies automatic remediation.</p>
+
+                <h2>Modes</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mode</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>monitor</td>
+                                <td>Watch only — logs violations, sends notifications</td>
+                            </tr>
+                            <tr>
+                                <td>diagnose</td>
+                                <td>Watch + AI diagnosis on each violation</td>
+                            </tr>
+                            <tr>
+                                <td>remediate</td>
+                                <td>Watch + diagnose + auto-apply fixes (restart pod, scale, etc.)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>CLI</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Watch cluster with rules file, auto-remediate</span>
+<span class="cmd">ai-agent cluster</span> \
+  --rules ./cluster-debug-rules.yaml \
+  --mode remediate \
+  --namespace production \
+  --notify-slack https://hooks.slack.com/services/XXX/YYY/ZZZ \
+  --ui --port 3000
+
+<span class="cmd">ai-agent cluster</span> [options]
+
+      --rules &lt;path&gt;       YAML rules file (default: ./cluster-debug-rules.yaml)
+      --mode &lt;mode&gt;        monitor | diagnose | remediate
+      --namespace &lt;ns&gt;     Kubernetes namespace (default: default)
+      --interval &lt;secs&gt;    poll interval seconds (default: 30)
+      --notify-slack &lt;url&gt; Slack webhook for alerts
+      --notify-teams &lt;url&gt; Teams webhook for alerts
+      --ui                 open web dashboard
+      --port &lt;port&gt;        dashboard port (default: 3000)</code></pre>
+                </div>
+
+                <h2>Rules file</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">yaml</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>rules:
+  - id: crash-loop
+    description: Detect CrashLoopBackOff pods
+    condition: pod.status == "CrashLoopBackOff"
+    severity: critical
+    actions:
+      - type: restart-pod
+      - type: notify
+      - type: ai-diagnose
+
+  - id: high-cpu
+    description: Pod CPU usage above 90%
+    condition: pod.cpu &gt; 90
+    severity: warning
+    actions:
+      - type: scale-up
+        replicas: 2
+      - type: notify
+
+  - id: oom-killed
+    description: OOMKilled containers
+    condition: pod.status == "OOMKilled"
+    severity: critical
+    actions:
+      - type: ai-diagnose
+      - type: notify</code></pre>
+                </div>
+
+                <h2>Action types</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>restart-pod</td>
+                                <td>Delete the pod so Kubernetes restarts it</td>
+                            </tr>
+                            <tr>
+                                <td>scale-up</td>
+                                <td>Increase deployment replicas</td>
+                            </tr>
+                            <tr>
+                                <td>scale-down</td>
+                                <td>Decrease deployment replicas</td>
+                            </tr>
+                            <tr>
+                                <td>notify</td>
+                                <td>Send Slack/Teams notification</td>
+                            </tr>
+                            <tr>
+                                <td>ai-diagnose</td>
+                                <td>Call AI provider for root-cause analysis</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Programmatic</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { ClusterMonitor } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> monitor = <span class="kw">new</span> <span class="ty">ClusterMonitor</span>({
+  mode:       <span class="st">'remediate'</span>,
+  namespace:  <span class="st">'production'</span>,
+  rulesFile:  <span class="st">'./cluster-debug-rules.yaml'</span>,
+  intervalMs: <span class="nm">30_000</span>,
+  notifications: {
+    slack: { enabled: <span class="kw">true</span>, webhookUrl: process.env.SLACK_WEBHOOK },
+  },
+});
+
+monitor.on(<span class="st">'violation'</span>,   (v) =&gt; console.log(<span class="st">'Rule violated:'</span>, v.ruleId, v.podName));
+monitor.on(<span class="st">'remediation'</span>, (r) =&gt; console.log(<span class="st">'Action taken:'</span>,  r.action, r.outcome));
+monitor.on(<span class="st">'analysis'</span>,    (a) =&gt; console.log(<span class="st">'AI diagnosis:'</span>,  a.text));
+
+<span class="kw">await</span> monitor.start();
+process.on(<span class="st">'SIGINT'</span>, () =&gt; monitor.stop());</code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ SKILLS ═══════════════════ -->
+            <article data-doc="skills">
+                <h1>Skills Registry</h1>
+                <p>Skills are named, reusable prompt fragments injected into the AI system prompt at session creation.
+                    Unlike speckits (full personas), skills are composable — combine multiple per session.</p>
+
+                <h2>Registering a skill</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { registerSkill, getSkill, listSkills } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+registerSkill({
+  name:        <span class="st">'typescript-strict'</span>,
+  description: <span class="st">'Enforce TypeScript strict mode patterns'</span>,
+  prompt:      <span class="st">`Always use TypeScript strict mode.
+- Avoid \`any\` type; use \`unknown\` + type guards
+- Prefer \`const\` over \`let\`
+- Use \`readonly\` on all interface properties`</span>,
+});
+
+<span class="cm">// Attach skills to a session</span>
+<span class="kw">const</span> session = agent.createSession({
+  speckit: <span class="st">'vibe-coder'</span>,
+  skills:  [<span class="st">'typescript-strict'</span>, <span class="st">'prefer-zod'</span>],
+});
+
+console.log(listSkills());           <span class="cm">// all registered skill names</span>
+console.log(getSkill(<span class="st">'typescript-strict'</span>).prompt);</code></pre>
+                </div>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>Skills are injected after the speckit system prompt. A speckit's persona instructions always
+                        take precedence over skill fragments.</div>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ CRON ═══════════════════ -->
+            <article data-doc="cron">
+                <h1>Cron Scheduler</h1>
+                <p>Schedule recurring AI tasks using standard cron expressions. Each job runs in its own session;
+                    results are available via REST or Socket.IO.</p>
+
+                <h2>CLI</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># Add a recurring job (9 AM Mon–Fri)</span>
+<span class="cmd">ai-agent cron</span> add \
+  --name daily-review \
+  --cron <span class="st">"0 9 * * 1-5"</span> \
+  --message <span class="st">"Review pull requests opened yesterday and summarise"</span> \
+  --speckit code-review
+
+<span class="cmd">ai-agent cron</span> list                       <span class="cm"># list all jobs</span>
+<span class="cmd">ai-agent cron</span> remove --name daily-review  <span class="cm"># remove a job</span>
+<span class="cmd">ai-agent cron</span> run    --name daily-review  <span class="cm"># run immediately</span></code></pre>
+                </div>
+
+                <h2>Programmatic</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { CronManager } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> cron = <span class="kw">new</span> <span class="ty">CronManager</span>(agent);
+
+cron.addJob({
+  name:       <span class="st">'daily-review'</span>,
+  expression: <span class="st">'0 9 * * 1-5'</span>,
+  message:    <span class="st">'Review open PRs and summarise'</span>,
+  speckit:    <span class="st">'code-review'</span>,
+});
+
+cron.on(<span class="st">'job:start'</span>,    (name) =&gt;        console.log(<span class="st">`Job started: ${name}`</span>));
+cron.on(<span class="st">'job:complete'</span>, (name, turn) =&gt;  console.log(turn.assistantMessage));
+cron.on(<span class="st">'job:error'</span>,    (name, err) =&gt;   console.error(err.message));
+
+cron.start();
+
+console.log(cron.listJobs());
+cron.removeJob(<span class="st">'daily-review'</span>);</code></pre>
+                </div>
+
+                <h2>REST API</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/cron</td>
+                                <td>List all jobs</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/cron</td>
+                                <td>Add a job — body: { name, expression, message, speckit? }</td>
+                            </tr>
+                            <tr>
+                                <td>DELETE</td>
+                                <td>/api/cron/:name</td>
+                                <td>Remove a job</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/cron/:name/run</td>
+                                <td>Run job immediately</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ WEBHOOKS ═══════════════════ -->
+            <article data-doc="webhooks">
+                <h1>Webhooks</h1>
+                <p>Register external webhook URLs that fusion-agent calls when key events occur (analysis ready, job
+                    complete, violation detected).</p>
+
+                <h2>Registering webhooks</h2>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { WebhookStore } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> store = <span class="kw">new</span> <span class="ty">WebhookStore</span>();
+
+store.register({
+  id:     <span class="st">'my-hook'</span>,
+  url:    <span class="st">'https://my-service.example.com/hooks/agent'</span>,
+  events: [<span class="st">'debugger:analysis'</span>, <span class="st">'cluster:violation'</span>],
+  secret: process.env.WEBHOOK_SECRET,  <span class="cm">// HMAC-SHA256 signing</span>
+});
+
+console.log(store.list());
+store.unregister(<span class="st">'my-hook'</span>);</code></pre>
+                </div>
+
+                <h2>Event types</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event</th>
+                                <th>Key payload fields</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>debugger:analysis</td>
+                                <td>sessionId, analysis, meta (repeatCount, fingerprint)</td>
+                            </tr>
+                            <tr>
+                                <td>debugger:error-repeated</td>
+                                <td>sessionId, turnId, repeatCount, lastSeen</td>
+                            </tr>
+                            <tr>
+                                <td>cluster:violation</td>
+                                <td>ruleId, podName, namespace, severity</td>
+                            </tr>
+                            <tr>
+                                <td>cluster:remediation</td>
+                                <td>ruleId, action, outcome</td>
+                            </tr>
+                            <tr>
+                                <td>cron:complete</td>
+                                <td>jobName, sessionId, turnId</td>
+                            </tr>
+                            <tr>
+                                <td>vibe:file-changed</td>
+                                <td>sessionId, filePath, content</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>If <code>secret</code> is set, every POST includes an <code>X-Fusion-Signature</code> header —
+                        an HMAC-SHA256 hex digest of the body. Verify it on your server before trusting the payload.
+                    </div>
+                </div>
+
+                <h2>REST API</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>GET</td>
+                                <td>/api/webhooks</td>
+                                <td>List registered webhooks</td>
+                            </tr>
+                            <tr>
+                                <td>POST</td>
+                                <td>/api/webhooks</td>
+                                <td>Register — body: { id, url, events, secret? }</td>
+                            </tr>
+                            <tr>
+                                <td>DELETE</td>
+                                <td>/api/webhooks/:id</td>
+                                <td>Unregister</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ BROWSER + AGENT BUS ═══════════════════ -->
+            <article data-doc="browser">
+                <h1>Browser Control &amp; Agent Bus</h1>
+
+                <h2>Browser Controller</h2>
+                <p>Drives a headless Chromium browser (via Playwright) from the AI. The agent can emit browser action
+                    blocks; fusion-agent executes them and returns the result.</p>
+                <div class="callout info"><span class="callout-icon">ℹ</span>
+                    <div>Requires <code>@playwright/test</code>. Run <code>npx playwright install chromium</code> once
+                        before first use.</div>
+                </div>
+
+                <h3>AI action block format</h3>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">xml</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>&lt;browser-action type="navigate"   url="https://example.com" /&gt;
+&lt;browser-action type="click"      selector="#login-btn" /&gt;
+&lt;browser-action type="fill"       selector="#email"    value="user@example.com" /&gt;
+&lt;browser-action type="fill"       selector="#password" value="secret" /&gt;
+&lt;browser-action type="click"      selector="button[type=submit]" /&gt;
+&lt;browser-action type="screenshot" /&gt;</code></pre>
+                </div>
+
+                <h3>Programmatic usage</h3>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { BrowserController } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> browser = <span class="kw">new</span> <span class="ty">BrowserController</span>({ headless: <span class="kw">true</span> });
+<span class="kw">await</span> browser.launch();
+
+<span class="kw">await</span> browser.navigate(<span class="st">'https://example.com'</span>);
+<span class="kw">await</span> browser.click(<span class="st">'#login-btn'</span>);
+<span class="kw">await</span> browser.fill(<span class="st">'#email'</span>, <span class="st">'user@example.com'</span>);
+
+<span class="kw">const</span> screenshot = <span class="kw">await</span> browser.screenshot();  <span class="cm">// base64 PNG</span>
+<span class="kw">const</span> html       = <span class="kw">await</span> browser.getPageSource();
+
+<span class="kw">await</span> browser.close();</code></pre>
+                </div>
+
+                <h2>Agent Bus</h2>
+                <p>An in-process publish/subscribe bus that lets multiple agent sessions communicate — useful for
+                    multi-agent workflows where one agent triggers another.</p>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">typescript</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="kw">import</span> { AgentBus } <span class="kw">from</span> <span class="st">'fusion-agent'</span>;
+
+<span class="kw">const</span> bus = <span class="kw">new</span> <span class="ty">AgentBus</span>();
+
+<span class="cm">// Agent A publishes</span>
+bus.publish(<span class="st">'review-done'</span>, {
+  sessionId: <span class="st">'review-123'</span>,
+  summary:   <span class="st">'Found 2 high severity issues'</span>,
+  files:     [<span class="st">'src/auth.ts'</span>],
+});
+
+<span class="cm">// Agent B subscribes and reacts</span>
+bus.subscribe(<span class="st">'review-done'</span>, <span class="kw">async</span> (payload) =&gt; {
+  <span class="kw">await</span> fixerAgent.chat(<span class="st">`Fix issues in ${payload.files.join(<span class="st">', '</span>)}`</span>);
+});
+
+<span class="cm">// Unsubscribe: call the returned function</span>
+<span class="kw">const</span> unsub = bus.subscribe(<span class="st">'review-done'</span>, handler);
+unsub();</code></pre>
+                </div>
+            </article>
+
+            <!-- ═══════════════════ DEPLOYMENT ═══════════════════ -->
+            <article data-doc="deployment">
+                <h1>Docker Deployment Examples</h1>
+                <p>Two ready-made Docker Compose setups ship in <code>deploy/</code>: a self-fix debugger and a Copilot
+                    auto-assign monitor.</p>
+
+                <h2>Self-Fix Debugger</h2>
+                <p>Watches a Docker container, generates AI fixes, and commits them as a GitHub PR automatically.</p>
+                <div class="flow">
+                    <div class="flow-step a">Docker logs</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">AI analysis</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Generate fix</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step b">GitHub PR</div>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code><span class="cm"># 1. Copy and fill in the config</span>
+cp deploy/live-debugger-selffix/config.example.json config.json
+
+<span class="cm"># 2. Edit config.json — set provider, GitHub token, repo URL</span>
+
+<span class="cm"># 3. Start</span>
+cd deploy/live-debugger-selffix
+docker compose up -d</code></pre>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">json</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>{
+  <span class="st">"provider"</span>:  <span class="st">"openai"</span>,
+  <span class="st">"model"</span>:     <span class="st">"gpt-4o"</span>,
+  <span class="st">"container"</span>: <span class="st">"my-api"</span>,
+  <span class="st">"logLevels"</span>: [<span class="st">"ERROR"</span>, <span class="st">"FATAL"</span>],
+  <span class="st">"github"</span>: {
+    <span class="st">"token"</span>:      <span class="st">"ghp_..."</span>,
+    <span class="st">"repoUrl"</span>:    <span class="st">"https://github.com/org/repo"</span>,
+    <span class="st">"branch"</span>:     <span class="st">"fusion-agent/auto-fix"</span>,
+    <span class="st">"baseBranch"</span>: <span class="st">"main"</span>
+  },
+  <span class="st">"notifications"</span>: {
+    <span class="st">"slack"</span>: { <span class="st">"enabled"</span>: <span class="kw">true</span>, <span class="st">"webhookUrl"</span>: <span class="st">"https://hooks.slack.com/..."</span> }
+  }
+}</code></pre>
+                </div>
+
+                <h2>Copilot Auto-Assign</h2>
+                <p>Creates a GitHub issue and assigns Copilot instead of opening a PR directly. <strong>Apply Git
+                        Fix</strong> is blocked in the Web UI when this mode is active.</p>
+                <div class="flow">
+                    <div class="flow-step a">Docker logs</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">AI analysis</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Create issue</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step b">Copilot assigned</div>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">shell</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>cp deploy/live-debugger-copilot-autoassign/config.example.json config.json
+<span class="cm"># Set autoAssignCopilot: true, fill in github token + repoUrl</span>
+cd deploy/live-debugger-copilot-autoassign
+docker compose up -d</code></pre>
+                </div>
+                <div class="code-wrap">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div><span class="code-lang">json</span><button class="code-copy">copy</button>
+                    </div>
+                    <pre><code>{
+  <span class="st">"provider"</span>:  <span class="st">"anthropic"</span>,
+  <span class="st">"model"</span>:     <span class="st">"claude-3-5-sonnet-20241022"</span>,
+  <span class="st">"container"</span>: <span class="st">"my-api"</span>,
+  <span class="st">"logLevels"</span>: [<span class="st">"ERROR"</span>, <span class="st">"FATAL"</span>],
+  <span class="st">"github"</span>: {
+    <span class="st">"token"</span>:             <span class="st">"ghp_..."</span>,
+    <span class="st">"repoUrl"</span>:           <span class="st">"https://github.com/org/repo"</span>,
+    <span class="st">"autoAssignCopilot"</span>: <span class="kw">true</span>
+  }
+}</code></pre>
+                </div>
+
+                <h2>Environment variables</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Variable</th>
+                                <th>Config key</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>AI_PROVIDER</td>
+                                <td>provider</td>
+                            </tr>
+                            <tr>
+                                <td>AI_MODEL</td>
+                                <td>model</td>
+                            </tr>
+                            <tr>
+                                <td>OPENAI_API_KEY</td>
+                                <td>apiKey (OpenAI)</td>
+                            </tr>
+                            <tr>
+                                <td>ANTHROPIC_API_KEY</td>
+                                <td>apiKey (Anthropic)</td>
+                            </tr>
+                            <tr>
+                                <td>GEMINI_API_KEY</td>
+                                <td>apiKey (Gemini)</td>
+                            </tr>
+                            <tr>
+                                <td>GITHUB_TOKEN</td>
+                                <td>github.token</td>
+                            </tr>
+                            <tr>
+                                <td>GITHUB_REPO_URL</td>
+                                <td>github.repoUrl</td>
+                            </tr>
+                            <tr>
+                                <td>JIRA_TOKEN</td>
+                                <td>jira.apiToken</td>
+                            </tr>
+                            <tr>
+                                <td>SLACK_WEBHOOK</td>
+                                <td>notifications.slack.webhookUrl</td>
+                            </tr>
+                            <tr>
+                                <td>TEAMS_WEBHOOK</td>
+                                <td>notifications.teams.webhookUrl</td>
+                            </tr>
+                            <tr>
+                                <td>AI_AGENT_PORT</td>
+                                <td>port</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+        </main>
+    </div>
+
+    <script>
+        (function () {
+            var tocItems = document.querySelectorAll('.toc-item');
+            var articles = document.querySelectorAll('article[data-doc]');
+            var main = document.getElementById('main');
+
+            function showDoc(name) {
+                articles.forEach(function (a) {
+                    var match = a.getAttribute('data-doc') === name;
+                    a.classList.toggle('active', match);
+                    if (match) {
+                        // Re-trigger animation
+                        a.style.animation = 'none';
+                        void a.offsetHeight;
+                        a.style.animation = '';
+                    }
+                });
+                tocItems.forEach(function (item) {
+                    item.classList.toggle('active', item.getAttribute('data-doc') === name);
+                });
+                if (main) main.scrollTop = 0;
+                // Close mobile TOC
+                document.getElementById('toc').classList.remove('open');
+                document.getElementById('overlay').classList.remove('open');
+            }
+
+            tocItems.forEach(function (item) {
+                item.addEventListener('click', function () {
+                    showDoc(item.getAttribute('data-doc'));
+                });
+            });
+
+            document.querySelectorAll('.card[data-goto]').forEach(function (card) {
+                card.addEventListener('click', function () {
+                    showDoc(card.getAttribute('data-goto'));
+                });
+            });
+
+            // Copy buttons
+            document.querySelectorAll('.code-copy').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var pre = btn.closest('.code-wrap').querySelector('pre');
+                    if (!pre) return;
+                    navigator.clipboard.writeText(pre.innerText).then(function () {
+                        btn.textContent = 'copied!';
+                        btn.classList.add('ok');
+                        setTimeout(function () {
+                            btn.textContent = 'copy';
+                            btn.classList.remove('ok');
+                        }, 1800);
+                    });
+                });
+            });
+
+            // Mobile menu
+            var menuBtn = document.getElementById('menuBtn');
+            var toc = document.getElementById('toc');
+            var overlay = document.getElementById('overlay');
+            menuBtn.addEventListener('click', function () {
+                toc.classList.toggle('open');
+                overlay.classList.toggle('open');
+            });
+            overlay.addEventListener('click', function () {
+                toc.classList.remove('open');
+                overlay.classList.remove('open');
+            });
+
+            // Theme toggle
+            var themeBtn = document.getElementById('themeBtn');
+            var html = document.documentElement;
+            var saved = localStorage.getItem('fa-theme');
+            if (saved === 'light') html.classList.add('light');
+            themeBtn.addEventListener('click', function () {
+                html.classList.toggle('light');
+                localStorage.setItem('fa-theme', html.classList.contains('light') ? 'light' : 'dark');
+            });
+        })();
+    </script>
+</body>
+
+</html>

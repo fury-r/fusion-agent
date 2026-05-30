@@ -24,6 +24,19 @@ export function createSessionRoutes(sessionManager: SessionManager): Router {
     }
   });
 
+  // DELETE /api/sessions — delete all sessions
+  router.delete('/', (_req: Request, res: Response) => {
+    try {
+      const all = sessionManager.listSessions();
+      for (const s of all) {
+        sessionManager.deleteSession(s.id);
+      }
+      res.json({ deleted: all.length });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // DELETE /api/sessions/:id — delete session
   router.delete('/:id', (req: Request, res: Response) => {
     try {

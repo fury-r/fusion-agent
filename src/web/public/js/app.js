@@ -230,6 +230,29 @@
     .getElementById("refresh-btn")
     .addEventListener("click", loadSessions);
 
+  document
+    .getElementById("clear-all-btn")
+    .addEventListener("click", function () {
+      if (!confirm("Delete ALL sessions? This cannot be undone.")) return;
+      fetch("/api/sessions", { method: "DELETE" })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          showToast(
+            "Cleared " +
+              (data.deleted || 0) +
+              " session" +
+              (data.deleted !== 1 ? "s" : ""),
+            "success",
+          );
+          loadSessions();
+        })
+        .catch(function (err) {
+          showToast("Error: " + err.message, "error");
+        });
+    });
+
   document.getElementById("export-btn").addEventListener("click", function () {
     if (currentSessionId) {
       window.location.href = "/api/sessions/" + currentSessionId + "/export";
@@ -1113,7 +1136,7 @@
     (session.turns || []).forEach(function (turn) {
       var meta = turn.debuggerMeta || {};
       (meta.matchedLogLines || []).forEach(function (line) {
-        logFeed.appendChild(makeDbgLogLine(line, null, true));
+        logFeed.appendChild(makeDbgLogLine(line, null, true, turn.id));
       });
     });
 
@@ -1125,9 +1148,17 @@
       analysisList.innerHTML = '<div class="loading">No analysis yet</div>';
     } else {
       turns.forEach(function (turn, idx) {
-        analysisList.appendChild(
-          makeAnalysisCard(turn, turns.length - idx, session.id),
-        );
+        var card = makeAnalysisCard(turn, turns.length - idx, session.id);
+        analysisList.appendChild(card);
+        // Restore repeat count badge for historical turns
+        var meta = turn.debuggerMeta || {};
+        if (meta.repeatCount && meta.repeatCount > 1) {
+          updateCardRepeatCount(
+            turn.id,
+            meta.repeatCount,
+            meta.lastSeenAt || meta.responseReceivedAt,
+          );
+        }
       });
     }
 
@@ -1135,13 +1166,22 @@
     document.getElementById("dbg-info-panel").innerHTML =
       renderDbgInfoPanel(session);
 
+    // Render initial dashboard
+    renderDashboard();
+
     // Subscribe to session-level updates
     socket.emit("subscribe:session", session.id);
   }
 
-  function makeDbgLogLine(line, timestamp, isMatched) {
+  function makeDbgLogLine(line, timestamp, isMatched, turnId) {
     var div = document.createElement("div");
     div.className = "dbg-log-line" + (isMatched ? " log-matched" : "");
+    if (turnId) {
+      div.setAttribute("data-turn-id", turnId);
+      div.title = "Click to jump to related analysis";
+    } else {
+      div.title = "Click to copy log line";
+    }
     var html = "";
     if (timestamp) {
       html +=
@@ -1152,6 +1192,19 @@
     html += escHtml(line);
     div.innerHTML = html;
     return div;
+  }
+
+  function focusAnalysisCard(turnId) {
+    if (!turnId) return;
+    var card = document.querySelector(
+      '.analysis-card[data-turn-id="' + turnId + '"]',
+    );
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("analysis-card-linked");
+    setTimeout(function () {
+      card.classList.remove("analysis-card-linked");
+    }, 1300);
   }
 
   function makeAnalysisCard(turn, number, sessionId) {
@@ -1319,7 +1372,152 @@
   function openGitModal(sessionId, turnId) {
     dbgActiveModal.sessionId = sessionId;
     dbgActiveModal.turnId = turnId;
+    // Reset to step 1
+    gitWizardGoTo(1);
     document.getElementById("git-modal").classList.remove("hidden");
+  }
+
+  // ── Git Fix Wizard helpers ───────────────────────────────────────────────
+
+  function gitWizardGoTo(step) {
+    [1, 2, 3].forEach(function (n) {
+      document
+        .getElementById("git-step-" + n)
+        .classList.toggle("hidden", n !== step);
+      var pill = document.getElementById("git-step-" + n + "-pill");
+      if (pill) {
+        pill.classList.toggle("active", n === step);
+        pill.classList.toggle("done", n < step);
+      }
+    });
+  }
+
+  /**
+   * Build a simple two-column line diff.
+   * Returns an array of {type:'added'|'removed'|'unchanged', text} line objects
+   * using the longest-common-subsequence Myers diff (line-level).
+   */
+  function computeLineDiff(before, after) {
+    var aLines = before ? before.split("\n") : [];
+    var bLines = after ? after.split("\n") : [];
+
+    // Simple LCS-based diff
+    var m = aLines.length,
+      n = bLines.length;
+    // dp[i][j] = LCS length for aLines[0..i-1], bLines[0..j-1]
+    var dp = [];
+    for (var i = 0; i <= m; i++) {
+      dp[i] = new Array(n + 1).fill(0);
+    }
+    for (var i = 1; i <= m; i++) {
+      for (var j = 1; j <= n; j++) {
+        dp[i][j] =
+          aLines[i - 1] === bLines[j - 1]
+            ? dp[i - 1][j - 1] + 1
+            : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    // Backtrack
+    var leftLines = [],
+      rightLines = [];
+    var i = m,
+      j = n;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && aLines[i - 1] === bLines[j - 1]) {
+        leftLines.unshift({ type: "unchanged", text: aLines[i - 1] });
+        rightLines.unshift({ type: "unchanged", text: bLines[j - 1] });
+        i--;
+        j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        leftLines.unshift({ type: "empty", text: "" });
+        rightLines.unshift({ type: "added", text: bLines[j - 1] });
+        j--;
+      } else {
+        leftLines.unshift({ type: "removed", text: aLines[i - 1] });
+        rightLines.unshift({ type: "empty", text: "" });
+        i--;
+      }
+    }
+    return { left: leftLines, right: rightLines };
+  }
+
+  function renderDiffCol(lines, side) {
+    var html =
+      '<div class="git-diff-col ' +
+      side +
+      '">' +
+      '<div class="git-diff-col-header">' +
+      (side === "before" ? "Before" : "After") +
+      "</div>";
+    lines.forEach(function (l, idx) {
+      var cls = "git-diff-line";
+      if (l.type === "added") cls += " added";
+      if (l.type === "removed") cls += " removed";
+      var lineNum = l.type === "empty" ? "" : String(idx + 1);
+      html +=
+        '<div class="' +
+        cls +
+        '">' +
+        '<span class="git-diff-line-num">' +
+        escHtml(lineNum) +
+        "</span>" +
+        '<span class="git-diff-line-text">' +
+        escHtml(l.text) +
+        "</span>" +
+        "</div>";
+    });
+    html += "</div>";
+    return html;
+  }
+
+  function renderGitDiffList(changes) {
+    var container = document.getElementById("git-diff-list");
+    container.innerHTML = "";
+
+    if (!changes || changes.length === 0) {
+      container.innerHTML =
+        '<div class="git-diff-loading">No file changes found in AI analysis.</div>';
+      return;
+    }
+
+    changes.forEach(function (change, idx) {
+      var isNew = change.before === null;
+      var diff = computeLineDiff(change.before || "", change.after || "");
+
+      var file = document.createElement("div");
+      file.className = "git-diff-file";
+
+      var badge = isNew ? "new" : "modified";
+      var badgeLabel = isNew ? "NEW" : "MODIFIED";
+
+      var header = document.createElement("div");
+      header.className = "git-diff-file-header";
+      header.innerHTML =
+        '<span class="git-diff-file-path">' +
+        escHtml(change.filePath) +
+        "</span>" +
+        '<span class="git-diff-file-badge ' +
+        badge +
+        '">' +
+        badgeLabel +
+        "</span>" +
+        '<span class="git-diff-file-toggle">▼</span>';
+
+      var cols = document.createElement("div");
+      cols.className = "git-diff-columns";
+      cols.innerHTML =
+        renderDiffCol(diff.left, "before") + renderDiffCol(diff.right, "after");
+
+      header.addEventListener("click", function () {
+        cols.classList.toggle("collapsed");
+        header.querySelector(".git-diff-file-toggle").textContent =
+          cols.classList.contains("collapsed") ? "▶" : "▼";
+      });
+
+      file.appendChild(header);
+      file.appendChild(cols);
+      container.appendChild(file);
+    });
   }
 
   function updateCardJira(turnId, jiraKey) {
@@ -1385,6 +1583,110 @@
     badge.rel = "noopener noreferrer";
     badge.textContent = "🤖 Copilot Issue";
     footer.insertBefore(badge, footer.firstChild);
+  }
+
+  function updateCardRepeatCount(turnId, count, lastSeen) {
+    var card = document.querySelector(
+      '.analysis-card[data-turn-id="' + turnId + '"]',
+    );
+    if (!card) return;
+    card.classList.add("is-repeated");
+    // Update or create repeat count badge in header
+    var header = card.querySelector(".analysis-header-left");
+    if (!header) return;
+    var existing = header.querySelector(".badge-repeat-count");
+    if (existing) {
+      existing.textContent = "↻ " + count + "×";
+      existing.title = "Last seen: " + new Date(lastSeen).toLocaleString();
+    } else {
+      var badge = document.createElement("span");
+      badge.className = "badge-repeat-count";
+      badge.textContent = "↻ " + count + "×";
+      badge.title = "Last seen: " + new Date(lastSeen).toLocaleString();
+      header.appendChild(badge);
+    }
+  }
+
+  function renderDashboard() {
+    var dashEl = document.getElementById("dbg-dashboard");
+    if (!dashEl) return;
+    // Collect stats from current analysis cards
+    var cards = Array.prototype.slice.call(
+      document.querySelectorAll(".analysis-card"),
+    );
+    var totalAnalyses = cards.length;
+    var totalRepeats = 0;
+    var uniqueErrors = 0;
+    // { label, count }
+    var errorItems = [];
+    cards.forEach(function (card) {
+      var repeatBadge = card.querySelector(".badge-repeat-count");
+      var count = 1;
+      if (repeatBadge) {
+        var m = (repeatBadge.textContent || "").match(/(\d+)/);
+        if (m) count = parseInt(m[1], 10);
+        totalRepeats += count - 1;
+      }
+      uniqueErrors++;
+      // Grab first line of analysis body as label
+      var body = card.querySelector(".analysis-body");
+      var rawText = body ? (body.textContent || "").trim() : "";
+      var label = rawText.replace(/\s+/g, " ").slice(0, 55);
+      errorItems.push({
+        label: label || "Error #" + uniqueErrors,
+        count: count,
+      });
+    });
+    var maxCount = errorItems.reduce(function (m, e) {
+      return Math.max(m, e.count);
+    }, 1);
+    // Sort by count desc, take top 8
+    var topErrors = errorItems
+      .slice()
+      .sort(function (a, b) {
+        return b.count - a.count;
+      })
+      .slice(0, 8);
+
+    var statsHtml =
+      '<div class="dbg-dash-stat-row">' +
+      '<div class="dbg-dash-stat"><div class="dbg-dash-stat-value">' +
+      totalAnalyses +
+      '</div><div class="dbg-dash-stat-label">Unique Errors</div></div>' +
+      '<div class="dbg-dash-stat"><div class="dbg-dash-stat-value">' +
+      totalRepeats +
+      '</div><div class="dbg-dash-stat-label">Suppressed Repeats</div></div>' +
+      '<div class="dbg-dash-stat"><div class="dbg-dash-stat-value">' +
+      (totalAnalyses + totalRepeats) +
+      '</div><div class="dbg-dash-stat-label">Total Occurrences</div></div>' +
+      "</div>";
+
+    var barsHtml =
+      '<div class="dbg-dash-section-title">Most Repeated Errors</div>' +
+      (topErrors.length === 0
+        ? '<div style="color:var(--text-muted);font-size:0.8rem">No errors yet</div>'
+        : topErrors
+            .map(function (e) {
+              var pct = Math.round((e.count / maxCount) * 100);
+              return (
+                '<div class="dbg-dash-error-row">' +
+                '<span class="dbg-dash-error-count">' +
+                e.count +
+                "×</span>" +
+                '<div class="dbg-dash-error-bar-wrap"><div class="dbg-dash-error-bar" style="width:' +
+                pct +
+                '%"></div></div>' +
+                '<span class="dbg-dash-error-label" title="' +
+                escHtml(e.label) +
+                '">' +
+                escHtml(e.label) +
+                "</span>" +
+                "</div>"
+              );
+            })
+            .join(""));
+
+    dashEl.innerHTML = statsHtml + barsHtml;
   }
 
   // Real-time debugger socket events
@@ -1453,10 +1755,32 @@
     var feed = document.getElementById("dbg-log-feed");
     if (feed && data.meta && data.meta.matchedLogLines) {
       data.meta.matchedLogLines.forEach(function (line) {
-        feed.appendChild(makeDbgLogLine(line, null, true));
+        feed.appendChild(makeDbgLogLine(line, null, true, pseudoTurn.id));
       });
       feed.scrollTop = feed.scrollHeight;
     }
+    renderDashboard();
+  });
+
+  socket.on("debugger:error-repeated", function (data) {
+    if (data.sessionId !== currentSessionId) return;
+    setDbgConnectStatus("connected");
+    updateCardRepeatCount(data.turnId, data.repeatCount, data.lastSeen);
+    // Flash the log feed lines as a muted repeated entry
+    var feed = document.getElementById("dbg-log-feed");
+    if (feed && data.logLines) {
+      data.logLines.forEach(function (line) {
+        var el = makeDbgLogLine(line, data.lastSeen, true, data.turnId);
+        el.classList.add("log-repeated");
+        feed.appendChild(el);
+      });
+      feed.scrollTop = feed.scrollHeight;
+    }
+    renderDashboard();
+    showToast(
+      "⚠ Same error seen " + data.repeatCount + "× — analysis suppressed",
+      "warn",
+    );
   });
 
   socket.on("debugger:error", function (data) {
@@ -1512,6 +1836,20 @@
   });
 
   function initDebuggerUI() {
+    // Analysis / Dashboard tab switching
+    document.querySelectorAll(".dbg-tab-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var tab = btn.getAttribute("data-dbtab");
+        document.querySelectorAll(".dbg-tab-btn").forEach(function (b) {
+          b.classList.toggle("active", b.getAttribute("data-dbtab") === tab);
+        });
+        document.querySelectorAll(".dbg-tab-content").forEach(function (el) {
+          el.classList.toggle("active", el.id === "dbg-tab-" + tab);
+        });
+        if (tab === "dashboard") renderDashboard();
+      });
+    });
+
     // Back button
     document
       .getElementById("dbg-back-btn")
@@ -1538,6 +1876,28 @@
         this.disabled = true;
         document.getElementById("dbg-live-dot").classList.remove("hidden");
         setDbgConnectStatus("connecting");
+      });
+
+    // Log feed interactions: jump to linked analysis card or copy raw line.
+    document
+      .getElementById("dbg-log-feed")
+      .addEventListener("click", function (e) {
+        var lineEl = e.target.closest(".dbg-log-line");
+        if (!lineEl) return;
+
+        var turnId = lineEl.getAttribute("data-turn-id");
+        if (turnId) {
+          focusAnalysisCard(turnId);
+          return;
+        }
+
+        var txt = lineEl.textContent || "";
+        if (!txt.trim()) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function () {
+            showToast("Log line copied", "success");
+          });
+        }
       });
 
     // Remove debugger-mode when navigating via sidebar
@@ -1619,21 +1979,26 @@
           });
       });
 
-    // Git modal
+    // Git modal close / cancel
     document
       .getElementById("git-modal-close")
       .addEventListener("click", function () {
         document.getElementById("git-modal").classList.add("hidden");
+        gitWizardGoTo(1);
       });
     document
       .getElementById("git-cancel-btn")
       .addEventListener("click", function () {
         document.getElementById("git-modal").classList.add("hidden");
+        gitWizardGoTo(1);
       });
     document
       .getElementById("git-modal")
       .addEventListener("click", function (e) {
-        if (e.target === this) this.classList.add("hidden");
+        if (e.target === this) {
+          this.classList.add("hidden");
+          gitWizardGoTo(1);
+        }
       });
 
     // ── Copilot modal ──────────────────────────────────────────────────────
@@ -1705,9 +2070,30 @@
           body: JSON.stringify(body),
         })
           .then(function (r) {
-            return r.json();
+            return r.json().then(function (data) {
+              return { ok: r.ok, data: data };
+            });
           })
-          .then(function (data) {
+          .then(function (result) {
+            var data = result.data;
+            if (!result.ok) {
+              if (data.violation) {
+                document
+                  .getElementById("copilot-modal")
+                  .classList.add("hidden");
+                showCopilotBlockedModal({
+                  sessionId: sessionId,
+                  turnId: turnId,
+                  violation: data.violation,
+                  blockedTitle: title || "",
+                  blockedBody: null,
+                  blockedLabels: body.labels || [],
+                  githubConfig: githubConfig,
+                });
+                return;
+              }
+              throw new Error(data.error || "Failed to create Copilot issue");
+            }
             if (data.violation) {
               // Guardrail blocked — show the blocked modal instead of closing
               document.getElementById("copilot-modal").classList.add("hidden");
@@ -1737,50 +2123,111 @@
           });
       });
 
+    // ── Git wizard wiring ──────────────────────────────────────────────────
+
+    // Helper to collect gitConfig from form
+    function buildGitBody() {
+      var sessionId = dbgActiveModal.sessionId;
+      var turnId = dbgActiveModal.turnId;
+      var gitConfig = {
+        repoPath: document.getElementById("git-repo-path").value.trim(),
+      };
+      var token = document.getElementById("git-token").value.trim();
+      if (token) gitConfig.token = token;
+      var remoteUrl = document.getElementById("git-remote-url").value.trim();
+      if (remoteUrl) gitConfig.remoteUrl = remoteUrl;
+      var branch = document.getElementById("git-branch").value.trim();
+      if (branch) gitConfig.branch = branch;
+      var apiBaseUrl = document.getElementById("git-api-base-url").value.trim();
+      if (apiBaseUrl) gitConfig.apiBaseUrl = apiBaseUrl;
+      var guardrailsText = document
+        .getElementById("git-guardrails")
+        .value.trim();
+      if (guardrailsText) {
+        gitConfig.guardrails = guardrailsText
+          .split("\n")
+          .map(function (l) {
+            return l.trim();
+          })
+          .filter(Boolean);
+      }
+      var body = { gitConfig: gitConfig };
+      var commitMsg = document
+        .getElementById("git-commit-message")
+        .value.trim();
+      if (commitMsg) body.commitMessage = commitMsg;
+      var prTitle = document.getElementById("git-pr-title").value.trim();
+      if (prTitle) body.prTitle = prTitle;
+      var baseBranch = document.getElementById("git-base-branch").value.trim();
+      if (baseBranch) body.baseBranch = baseBranch;
+      if (turnId) body.turnId = turnId;
+      return body;
+    }
+
+    // Step 1 → Step 2: Preview Changes
+    document
+      .getElementById("git-preview-btn")
+      .addEventListener("click", function () {
+        var sessionId = dbgActiveModal.sessionId;
+        var turnId = dbgActiveModal.turnId;
+        if (!sessionId) return;
+        var repoPath = document.getElementById("git-repo-path").value.trim();
+        if (!repoPath) {
+          showToast("Repo Path is required", "error");
+          return;
+        }
+
+        gitWizardGoTo(2);
+        var loading = document.getElementById("git-diff-loading");
+        loading.classList.remove("hidden");
+        document.getElementById("git-diff-list").innerHTML = "";
+        document.getElementById("git-submit-btn").disabled = true;
+
+        fetch("/api/debugger/" + sessionId + "/preview-git-fix", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ turnId: turnId, repoPath: repoPath }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            loading.classList.add("hidden");
+            if (data.error) {
+              document.getElementById("git-diff-list").innerHTML =
+                '<div class="git-diff-loading" style="color:var(--danger)">' +
+                escHtml(data.error) +
+                "</div>";
+              return;
+            }
+            renderGitDiffList(data.changes || []);
+            document.getElementById("git-submit-btn").disabled = false;
+          })
+          .catch(function (err) {
+            loading.classList.add("hidden");
+            document.getElementById("git-diff-list").innerHTML =
+              '<div class="git-diff-loading" style="color:var(--danger)">Error: ' +
+              escHtml(err.message) +
+              "</div>";
+          });
+      });
+
+    // Step 2: Back → Step 1
+    document
+      .getElementById("git-back-btn")
+      .addEventListener("click", function () {
+        gitWizardGoTo(1);
+      });
+
+    // Step 2 → Step 3: Apply Fix
     document
       .getElementById("git-submit-btn")
       .addEventListener("click", function () {
         var sessionId = dbgActiveModal.sessionId;
         var turnId = dbgActiveModal.turnId;
         if (!sessionId) return;
-
-        var gitConfig = {
-          repoPath: document.getElementById("git-repo-path").value.trim(),
-        };
-        var token = document.getElementById("git-token").value.trim();
-        if (token) gitConfig.token = token;
-        var remoteUrl = document.getElementById("git-remote-url").value.trim();
-        if (remoteUrl) gitConfig.remoteUrl = remoteUrl;
-        var branch = document.getElementById("git-branch").value.trim();
-        if (branch) gitConfig.branch = branch;
-        var apiBaseUrl = document
-          .getElementById("git-api-base-url")
-          .value.trim();
-        if (apiBaseUrl) gitConfig.apiBaseUrl = apiBaseUrl;
-        var guardrailsText = document
-          .getElementById("git-guardrails")
-          .value.trim();
-        if (guardrailsText) {
-          gitConfig.guardrails = guardrailsText
-            .split("\n")
-            .map(function (l) {
-              return l.trim();
-            })
-            .filter(Boolean);
-        }
-
-        var body = { gitConfig: gitConfig };
-        var commitMsg = document
-          .getElementById("git-commit-message")
-          .value.trim();
-        if (commitMsg) body.commitMessage = commitMsg;
-        var prTitle = document.getElementById("git-pr-title").value.trim();
-        if (prTitle) body.prTitle = prTitle;
-        var baseBranch = document
-          .getElementById("git-base-branch")
-          .value.trim();
-        if (baseBranch) body.baseBranch = baseBranch;
-        if (turnId) body.turnId = turnId;
+        this.disabled = true;
+        var body = buildGitBody();
 
         fetch("/api/debugger/" + sessionId + "/git-fix", {
           method: "POST",
@@ -1791,14 +2238,56 @@
             return r.json();
           })
           .then(function (data) {
-            document.getElementById("git-modal").classList.add("hidden");
-            var url = data.pullRequestUrl || data.commitSha || "";
-            showToast("Git fix applied" + (url ? ": " + url : ""), "success");
-            if (turnId) updateCardGit(turnId, url);
+            gitWizardGoTo(3);
+            var content = document.getElementById("git-result-content");
+            if (data.error) {
+              content.innerHTML =
+                '<div class="git-result-err">✗ Fix failed</div>' +
+                '<div class="git-result-row"><span class="git-result-key">Error</span>' +
+                '<span class="git-result-val">' +
+                escHtml(data.error) +
+                "</span></div>";
+            } else {
+              var url = data.pullRequestUrl || data.commitSha || "";
+              var html =
+                '<div class="git-result-ok">✓ Fix applied successfully</div>' +
+                '<div class="git-result-row"><span class="git-result-key">Branch</span>' +
+                '<span class="git-result-val">' +
+                escHtml(data.branch || "") +
+                "</span></div>" +
+                '<div class="git-result-row"><span class="git-result-key">Commit</span>' +
+                '<span class="git-result-val">' +
+                escHtml((data.commitSha || "").slice(0, 10)) +
+                "</span></div>";
+              if (data.pullRequestUrl) {
+                html +=
+                  '<div class="git-result-row"><span class="git-result-key">Pull Request</span>' +
+                  '<span class="git-result-val"><a href="' +
+                  escHtml(data.pullRequestUrl) +
+                  '" target="_blank" rel="noopener noreferrer" class="git-result-link">' +
+                  escHtml(data.pullRequestUrl) +
+                  "</a></span></div>";
+              }
+              content.innerHTML = html;
+              if (turnId) updateCardGit(turnId, url);
+            }
           })
           .catch(function (err) {
-            showToast("Error: " + err.message, "error");
+            gitWizardGoTo(3);
+            document.getElementById("git-result-content").innerHTML =
+              '<div class="git-result-err">✗ Error</div>' +
+              '<div class="git-result-row"><span class="git-result-key">Message</span>' +
+              '<span class="git-result-val">' +
+              escHtml(err.message) +
+              "</span></div>";
           });
+      });
+
+    // Step 3: Done → close modal
+    document
+      .getElementById("git-done-btn")
+      .addEventListener("click", function () {
+        document.getElementById("git-modal").classList.add("hidden");
       });
 
     // Copilot Blocked modal — close / dismiss / override
@@ -1885,4 +2374,34 @@
   }
 
   initDebuggerUI();
+
+  // ── Docs page ────────────────────────────────────────────────────────────
+
+  function initDocsUI() {
+    function showDoc(name) {
+      document.querySelectorAll(".docs-article").forEach(function (a) {
+        a.classList.toggle("active", a.getAttribute("data-doc") === name);
+      });
+      document.querySelectorAll(".docs-toc-item").forEach(function (item) {
+        item.classList.toggle("active", item.getAttribute("data-doc") === name);
+      });
+    }
+
+    document.querySelectorAll(".docs-toc-item").forEach(function (item) {
+      item.addEventListener("click", function () {
+        showDoc(item.getAttribute("data-doc"));
+      });
+    });
+
+    // Feature cards on the overview page navigate to their doc
+    document
+      .querySelectorAll(".docs-feature-card[data-goto]")
+      .forEach(function (card) {
+        card.addEventListener("click", function () {
+          showDoc(card.getAttribute("data-goto"));
+        });
+      });
+  }
+
+  initDocsUI();
 })();
