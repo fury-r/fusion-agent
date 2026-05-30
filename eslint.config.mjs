@@ -6,9 +6,9 @@ import globals from "globals";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   eslint.configs.recommended,
-  // TypeScript source files
+  // TypeScript source files (src + deploy + tests)
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "deploy/**/*.ts", "tests/**/*.ts"],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -34,6 +34,30 @@ export default [
       "no-console": "off",
       // TypeScript already validates undefined references; no-undef produces false positives for TS global types (e.g. NodeJS namespace)
       "no-undef": "off",
+    },
+  },
+  // Jest test files — add Jest globals
+  {
+    files: ["tests/**/*.ts", "tests/**/*.js"],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+        ...globals.node,
+      },
+    },
+  },
+  // Node.js server-side JavaScript in deploy
+  {
+    files: ["deploy/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: "commonjs",
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "no-console": "off",
     },
   },
   // Browser-side JavaScript in the Web UI

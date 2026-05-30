@@ -25,7 +25,6 @@ import {
     AgentCLI,
     LiveDebugger,
     JiraClient,
-    GitHubClient,
     createWebServer,
 } from 'fusion-agent';
 

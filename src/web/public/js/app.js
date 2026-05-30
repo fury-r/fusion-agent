@@ -1409,7 +1409,7 @@
     for (var i = 0; i <= m; i++) {
       dp[i] = new Array(n + 1).fill(0);
     }
-    for (var i = 1; i <= m; i++) {
+    for (i = 1; i <= m; i++) {
       for (var j = 1; j <= n; j++) {
         dp[i][j] =
           aLines[i - 1] === bLines[j - 1]
@@ -1420,8 +1420,8 @@
     // Backtrack
     var leftLines = [],
       rightLines = [];
-    var i = m,
-      j = n;
+    i = m;
+    j = n;
     while (i > 0 || j > 0) {
       if (i > 0 && j > 0 && aLines[i - 1] === bLines[j - 1]) {
         leftLines.unshift({ type: "unchanged", text: aLines[i - 1] });
@@ -1480,7 +1480,7 @@
       return;
     }
 
-    changes.forEach(function (change, idx) {
+    changes.forEach(function (change) {
       var isNew = change.before === null;
       var diff = computeLineDiff(change.before || "", change.after || "");
 
@@ -2127,7 +2127,6 @@
 
     // Helper to collect gitConfig from form
     function buildGitBody() {
-      var sessionId = dbgActiveModal.sessionId;
       var turnId = dbgActiveModal.turnId;
       var gitConfig = {
         repoPath: document.getElementById("git-repo-path").value.trim(),
