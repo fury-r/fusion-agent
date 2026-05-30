@@ -4,7 +4,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Agent CLI — Session Manager</title>
+  <title>fusion-agent — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="/css/app.css" />
 </head>
 
@@ -12,21 +17,40 @@
   <div id="app">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <span class="logo">🤖 AI Agent CLI</span>
+        <div class="sidebar-logo">
+          <span class="logo-mark">F</span>
+          <div class="logo-text">
+            <span class="logo-name">fusion</span>
+            <span class="logo-suffix">-agent v1</span>
+          </div>
+        </div>
       </div>
       <nav class="sidebar-nav">
-        <a href="#sessions" class="nav-item active" data-page="sessions">Sessions</a>
-        <a href="#vibe-coder" class="nav-item" data-page="vibe-coder">⚡ Vibe Coder</a>
-        <a href="#settings" class="nav-item" data-page="settings">Settings</a>
+        <div class="nav-group-label">Workspace</div>
+        <a href="#sessions" class="nav-item active" data-page="sessions"><span class="nav-icon">◈</span>Sessions</a>
+        <a href="#vibe-coder" class="nav-item" data-page="vibe-coder"><span class="nav-icon">⚡</span>Vibe Coder</a>
+        <div class="nav-group-label">System</div>
+        <a href="#settings" class="nav-item" data-page="settings"><span class="nav-icon">⚙</span>Settings</a>
+        <a href="#docs" class="nav-item" data-page="docs"><span class="nav-icon">◎</span>Docs</a>
       </nav>
+      <div class="sidebar-status">
+        <span class="sidebar-conn-dot"></span>
+        <span class="sidebar-conn-label">fusion-agent</span>
+      </div>
     </aside>
 
     <main class="main-content">
       <!-- Sessions Page -->
       <section id="page-sessions" class="page active">
         <div class="page-header">
-          <h1>Sessions</h1>
-          <button id="refresh-btn" class="btn btn-secondary">↻ Refresh</button>
+          <div class="page-header-left">
+            <h1 class="page-title">Sessions</h1>
+            <p class="page-subtitle">AI session history · file changes · debugger logs</p>
+          </div>
+          <div class="header-actions">
+            <button id="refresh-btn" class="btn btn-secondary">↻ Refresh</button>
+            <button id="clear-all-btn" class="btn btn-danger">⌦ Clear All</button>
+          </div>
         </div>
         <div id="sessions-list" class="sessions-list">
           <div class="loading">Loading sessions…</div>
@@ -36,11 +60,13 @@
       <!-- Session Detail Page -->
       <section id="page-session-detail" class="page">
         <div class="page-header">
-          <button id="back-btn" class="btn btn-ghost">← Back</button>
-          <h1 id="session-detail-title">Session</h1>
+          <button id="back-btn" class="btn btn-ghost btn-icon-left">← Back</button>
+          <div class="page-header-left">
+            <h1 id="session-detail-title" class="page-title">Session</h1>
+          </div>
           <div class="header-actions">
-            <button id="export-btn" class="btn btn-secondary">⬇ Export</button>
-            <button id="delete-btn" class="btn btn-danger">🗑 Delete</button>
+            <button id="export-btn" class="btn btn-secondary">↓ Export</button>
+            <button id="delete-btn" class="btn btn-danger">⌦ Delete</button>
           </div>
         </div>
         <div id="session-detail-content"></div>
@@ -51,7 +77,7 @@
         <div class="dbg-header">
           <button id="dbg-back-btn" class="btn btn-ghost">← Back</button>
           <h2 id="dbg-session-title" class="dbg-title"></h2>
-          <span id="dbg-session-id-badge" class="tag" style="font-family:monospace;font-size:0.72rem"></span>
+          <span id="dbg-session-id-badge" class="tag tag-mono"></span>
           <span id="dbg-session-status-badge" class="status-pill"></span>
           <div class="dbg-header-spacer"></div>
           <span id="dbg-connect-dot" class="dbg-connect-dot connect-idle" title="Debugger connection status"></span>
@@ -65,8 +91,16 @@
             <div id="dbg-log-feed"></div>
           </div>
           <div class="dbg-analysis-panel">
-            <div class="section-label dbg-panel-label">AI Analysis</div>
-            <div id="dbg-analysis-list"></div>
+            <div class="dbg-analysis-tabs">
+              <button class="dbg-tab-btn active" data-dbtab="analysis">AI Analysis</button>
+              <button class="dbg-tab-btn" data-dbtab="dashboard">Dashboard</button>
+            </div>
+            <div id="dbg-tab-analysis" class="dbg-tab-content active">
+              <div id="dbg-analysis-list"></div>
+            </div>
+            <div id="dbg-tab-dashboard" class="dbg-tab-content">
+              <div id="dbg-dashboard"></div>
+            </div>
           </div>
           <div id="dbg-info-panel" class="dbg-info-panel"></div>
         </div>
@@ -75,38 +109,51 @@
       <!-- Settings Page -->
       <section id="page-settings" class="page">
         <div class="page-header">
-          <h1>Settings</h1>
+          <div class="page-header-left">
+            <h1 class="page-title">Settings</h1>
+            <p class="page-subtitle">AI provider &middot; server configuration</p>
+          </div>
         </div>
         <form id="settings-form" class="settings-form">
-          <div class="form-group">
-            <label for="provider">Default AI Provider</label>
-            <select id="provider" name="provider">
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="gemini">Google Gemini</option>
-            </select>
+          <div class="settings-section">
+            <div class="settings-section-title">AI Provider</div>
+            <div class="form-row-grid">
+              <div class="form-group">
+                <label for="provider">Default Provider</label>
+                <select id="provider" name="provider">
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="gemini">Google Gemini</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="model">Default Model</label>
+                <input type="text" id="model" name="model" placeholder="e.g. gpt-4o" />
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="model">Default Model</label>
-            <input type="text" id="model" name="model" placeholder="e.g. gpt-4o" />
+          <div class="settings-section">
+            <div class="settings-section-title">Server</div>
+            <div class="form-row-grid">
+              <div class="form-group">
+                <label for="port">Web UI Port</label>
+                <input type="number" id="port" name="port" placeholder="3000" />
+              </div>
+              <div class="form-group">
+                <label for="logLevel">Log Level</label>
+                <select id="logLevel" name="logLevel">
+                  <option value="info">info</option>
+                  <option value="debug">debug</option>
+                  <option value="warn">warn</option>
+                  <option value="error">error</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="port">Web UI Port</label>
-            <input type="number" id="port" name="port" placeholder="3000" />
-          </div>
-          <div class="form-group">
-            <label for="logLevel">Log Level</label>
-            <select id="logLevel" name="logLevel">
-              <option value="info">info</option>
-              <option value="debug">debug</option>
-              <option value="warn">warn</option>
-              <option value="error">error</option>
-            </select>
-          </div>
-          <div class="form-group api-key-note">
-            <p>⚠️ API keys are configured via environment variables (<code>OPENAI_API_KEY</code>,
-              <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>) and are never stored in this interface.
-            </p>
+          <div class="settings-callout">
+            <span class="settings-callout-icon">⚠</span>
+            <div>API keys are set via environment variables: <code>OPENAI_API_KEY</code>,
+              <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>. They are never stored in this UI.</div>
           </div>
           <button type="submit" class="btn btn-primary">Save Settings</button>
         </form>
@@ -118,14 +165,14 @@
         <div class="vibe-header">
           <div class="session-bar">
             <input type="text" id="vibe-session-name" class="vibe-input-sm" placeholder="Session name…"
-              style="width:180px" />
+              style="width:170px" />
             <input type="text" id="vibe-project-dir" class="vibe-input-sm" placeholder="Project directory…" />
-            <button id="vibe-new-session-btn" class="btn btn-primary btn-sm">New Session</button>
+            <button id="vibe-new-session-btn" class="btn btn-primary btn-sm">New</button>
             <button id="vibe-demo-btn" class="btn btn-demo btn-sm">▶ Demo</button>
           </div>
           <div class="vibe-tabs">
-            <button class="btn vibe-tab-btn active" data-tab="chat">💬 Chat</button>
-            <button class="btn vibe-tab-btn" data-tab="autonomous">🤖 Autonomous</button>
+            <button class="btn vibe-tab-btn active" data-tab="chat">Chat</button>
+            <button class="btn vibe-tab-btn" data-tab="autonomous">Autonomous</button>
           </div>
           <span id="vibe-status-pill" class="status-pill status-idle">idle</span>
         </div>
@@ -138,7 +185,7 @@
             <div class="vibe-chat-panel">
               <div id="vibe-messages" class="vibe-messages"></div>
               <div class="vibe-input-bar">
-                <button id="vibe-context-btn" class="btn btn-secondary btn-icon" title="Inject context">📁</button>
+                <button id="vibe-context-btn" class="btn btn-secondary btn-icon" title="Inject context">⊞</button>
                 <textarea id="vibe-input" class="vibe-textarea" placeholder="Type a message… (Ctrl+Enter to send)"
                   rows="2"></textarea>
                 <button id="vibe-send-btn" class="btn btn-primary">Send</button>
@@ -199,7 +246,7 @@
               </div>
               <div class="auto-actions">
                 <button id="auto-run-btn" class="btn btn-primary">▶ Run</button>
-                <button id="auto-stop-btn" class="btn btn-danger hidden">⏹ Stop</button>
+                <button id="auto-stop-btn" class="btn btn-danger hidden">◼ Stop</button>
               </div>
             </div>
 
@@ -209,7 +256,7 @@
                 <div class="section-label auto-steps-label">
                   Steps
                   <button id="auto-open-dir-btn" class="btn btn-secondary btn-sm auto-open-dir-btn"
-                    title="Open project folder" style="display:none">📂 Open Folder</button>
+                    title="Open project folder" style="display:none">⊞ Open Folder</button>
                 </div>
                 <div id="auto-steps-list" class="auto-steps-list"></div>
               </div>
@@ -226,6 +273,769 @@
         </div>
 
       </section>
+
+      <!-- Docs Page -->
+      <section id="page-docs" class="page">
+        <div class="docs-layout">
+
+          <!-- Docs sidebar TOC -->
+          <nav class="docs-toc">
+            <div class="docs-toc-title">Contents</div>
+            <a class="docs-toc-item active" data-doc="overview">Overview</a>
+            <a class="docs-toc-item" data-doc="getting-started">Getting Started</a>
+            <a class="docs-toc-item" data-doc="vibe-coder">⚡ Vibe Coder</a>
+            <a class="docs-toc-item" data-doc="autonomous">⊙ Autonomous</a>
+            <a class="docs-toc-item" data-doc="live-debugger">◎ Live Debugger</a>
+            <a class="docs-toc-item" data-doc="sessions">▣ Sessions</a>
+            <a class="docs-toc-item" data-doc="providers">◈ AI Providers</a>
+            <a class="docs-toc-item" data-doc="integrations">⟐ Integrations</a>
+            <a class="docs-toc-item" data-doc="guardrails">⛨ Guardrails</a>
+            <a class="docs-toc-item" data-doc="speckits">◫ Speckits</a>
+          </nav>
+
+          <!-- Docs content -->
+          <div class="docs-content" id="docs-content">
+
+            <!-- overview -->
+            <article class="docs-article active" data-doc="overview">
+              <div class="docs-hero">
+                <div class="docs-hero-icon">🤖</div>
+                <div>
+                  <h1 class="docs-hero-title">fusion-agent</h1>
+                  <p class="docs-hero-sub">AI-powered developer toolkit — vibe coder, live debugger, autonomous agent,
+                    and session manager in one.</p>
+                </div>
+              </div>
+
+              <div class="docs-card-grid">
+                <div class="docs-feature-card" data-goto="vibe-coder">
+                  <div class="docs-feature-icon">⚡</div>
+                  <div class="docs-feature-title">Vibe Coder</div>
+                  <div class="docs-feature-desc">Chat with AI, auto-write files to disk. Interactive or autonomous mode.
+                  </div>
+                </div>
+                <div class="docs-feature-card" data-goto="autonomous">
+                  <div class="docs-feature-icon">🤖</div>
+                  <div class="docs-feature-title">Autonomous Agent</div>
+                  <div class="docs-feature-desc">Give it a requirements file and walk away. It loops until done.</div>
+                </div>
+                <div class="docs-feature-card" data-goto="live-debugger">
+                  <div class="docs-feature-icon">🔍</div>
+                  <div class="docs-feature-title">Live Debugger</div>
+                  <div class="docs-feature-desc">Tail logs, batch with AI, deduplicate errors, push to Jira / GitHub.
+                  </div>
+                </div>
+                <div class="docs-feature-card" data-goto="integrations">
+                  <div class="docs-feature-icon">🔗</div>
+                  <div class="docs-feature-title">Integrations</div>
+                  <div class="docs-feature-desc">Git fixes pushed to GitHub API. Jira tickets. Copilot issue assignment.
+                  </div>
+                </div>
+              </div>
+
+              <h2 class="docs-h2">Quick Start</h2>
+              <pre class="docs-code"><code><span class="cm"># Install globally</span>
+npm install -g fusion-agent
+
+<span class="cm"># Set at least one provider key</span>
+export OPENAI_API_KEY=sk-...
+
+<span class="cm"># Interactive vibe coder</span>
+ai-agent chat
+
+<span class="cm"># Live debugger on a Docker container</span>
+ai-agent debug --docker my-api --ui
+
+<span class="cm"># Web dashboard</span>
+ai-agent ui</code></pre>
+
+              <h2 class="docs-h2">Architecture</h2>
+              <div class="docs-arch">
+                <div class="docs-arch-row">
+                  <div class="docs-arch-box accent">CLI <code>ai-agent</code></div>
+                  <div class="docs-arch-sep">+</div>
+                  <div class="docs-arch-box accent">Web UI <code>ai-agent ui</code></div>
+                </div>
+                <div class="docs-arch-arrow">↓</div>
+                <div class="docs-arch-row">
+                  <div class="docs-arch-box">⚡ Vibe Coder</div>
+                  <div class="docs-arch-box">🤖 Autonomous</div>
+                  <div class="docs-arch-box">🔍 Live Debugger</div>
+                  <div class="docs-arch-box">☸ Cluster Monitor</div>
+                </div>
+                <div class="docs-arch-arrow">↓</div>
+                <div class="docs-arch-row">
+                  <div class="docs-arch-box muted">💾 Session Manager</div>
+                  <div class="docs-arch-box muted">🧠 AI Providers</div>
+                  <div class="docs-arch-box muted">🔗 Integrations</div>
+                </div>
+              </div>
+            </article>
+
+            <!-- getting-started -->
+            <article class="docs-article" data-doc="getting-started">
+              <h1 class="docs-title">Getting Started</h1>
+
+              <div class="docs-callout info">
+                <strong>Requirements:</strong> Node.js 18+, npm 9+, and an API key for OpenAI, Anthropic, or Gemini.
+              </div>
+
+              <h2 class="docs-h2">Installation</h2>
+              <pre class="docs-code"><code><span class="cm"># Global CLI</span>
+npm install -g fusion-agent
+
+<span class="cm"># Project dependency</span>
+npm install fusion-agent
+
+<span class="cm"># From source</span>
+git clone https://github.com/fury-r/fusion-agent.git
+cd fusion-agent &amp;&amp; npm install &amp;&amp; npm run build</code></pre>
+
+              <h2 class="docs-h2">Configuration</h2>
+              <p class="docs-p">Set environment variables or create <code>.fusion-agent.json</code> in your project
+                root.</p>
+              <pre class="docs-code"><code><span class="cm"># Environment variables</span>
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=AIza...</code></pre>
+              <pre class="docs-code"><code><span class="cm">// .fusion-agent.json</span>
+{
+  <span class="str">"provider"</span>: <span class="str">"openai"</span>,
+  <span class="str">"model"</span>: <span class="str">"gpt-4o"</span>,
+  <span class="str">"port"</span>: 3000,
+  <span class="str">"github"</span>: {
+    <span class="str">"token"</span>: <span class="str">"ghp_..."</span>,
+    <span class="str">"repoUrl"</span>: <span class="str">"https://github.com/org/repo"</span>
+  }
+}</code></pre>
+
+              <h2 class="docs-h2">Config search order</h2>
+              <ol class="docs-ol">
+                <li><code>.fusion-agent.json</code> (current directory)</li>
+                <li><code>.fusion-agent.yaml</code> (current directory)</li>
+                <li><code>~/.fusion-agent/config.json</code></li>
+                <li><code>~/.fusion-agent/config.yaml</code></li>
+              </ol>
+              <p class="docs-p" style="margin-top:8px">CLI flags and env vars always override the config file.</p>
+
+              <h2 class="docs-h2">CLI config command</h2>
+              <pre class="docs-code"><code>ai-agent config --provider openai --model gpt-4o
+ai-agent config --show   <span class="cm"># print resolved config</span></code></pre>
+            </article>
+
+            <!-- vibe-coder -->
+            <article class="docs-article" data-doc="vibe-coder">
+              <h1 class="docs-title">⚡ Vibe Coder</h1>
+              <p class="docs-p">An AI pair-programmer that reads your project, generates code, and writes files to disk
+                automatically. Two modes: <strong>Interactive chat</strong> and <strong>Autonomous</strong>.</p>
+
+              <h2 class="docs-h2">How file generation works</h2>
+              <div class="docs-flow">
+                <div class="docs-flow-step">AI response</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Detect <code>```lang:path```</code> blocks</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Guardrail check</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Write to disk</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Record in session</div>
+              </div>
+              <p class="docs-p">The AI must produce code blocks in this format:</p>
+              <pre class="docs-code"><code>```typescript:src/middleware/auth.ts
+// full corrected file content
+```</code></pre>
+
+              <h2 class="docs-h2">CLI</h2>
+              <pre class="docs-code"><code>ai-agent chat [options]
+
+  -p, --provider &lt;name&gt;     openai | anthropic | gemini
+  -m, --model &lt;name&gt;        e.g. gpt-4o
+  -s, --session &lt;name&gt;      create or resume a named session
+  -k, --speckit &lt;name&gt;      agent persona (default: vibe-coder)
+  -g, --guardrail &lt;rule&gt;    add a guardrail rule (repeatable)
+      --context             inject project dir structure</code></pre>
+
+              <h2 class="docs-h2">In-session commands</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Command</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>/exit</code></td>
+                      <td>End session and save</td>
+                    </tr>
+                    <tr>
+                      <td><code>/save</code></td>
+                      <td>Save without ending</td>
+                    </tr>
+                    <tr>
+                      <td><code>/turns</code></td>
+                      <td>Show conversation history</td>
+                    </tr>
+                    <tr>
+                      <td><code>/context</code></td>
+                      <td>Inject project directory tree</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Web UI usage</h2>
+              <ol class="docs-ol">
+                <li>Navigate to <strong>⚡ Vibe Coder</strong> in the sidebar.</li>
+                <li>Select <strong>Chat</strong> or <strong>Autonomous</strong> tab.</li>
+                <li>Type a message and press <kbd>Enter</kbd> or click <strong>Send</strong>.</li>
+                <li>Watch files appear in the <strong>Files Changed</strong> panel in real time.</li>
+              </ol>
+
+              <h2 class="docs-h2">Programmatic API</h2>
+              <pre class="docs-code"><code><span class="kw">import</span> { AgentCLI } <span class="kw">from</span> <span class="str">'fusion-agent'</span>;
+
+<span class="kw">const</span> agent = <span class="kw">new</span> AgentCLI({ provider: <span class="str">'openai'</span> });
+<span class="kw">const</span> session = agent.createSession({
+  name: <span class="str">'my-project'</span>,
+  speckit: <span class="str">'vibe-coder'</span>,
+  projectDir: process.cwd(),
+});
+
+<span class="kw">const</span> turn = <span class="kw">await</span> session.chat(<span class="str">'Add JWT auth middleware'</span>, {
+  stream: <span class="kw">true</span>,
+  onChunk: (chunk) =&gt; process.stdout.write(chunk),
+});
+console.log(<span class="str">'Files changed:'</span>, turn.fileChanges);</code></pre>
+            </article>
+
+            <!-- autonomous -->
+            <article class="docs-article" data-doc="autonomous">
+              <h1 class="docs-title">🤖 Autonomous Agent</h1>
+              <p class="docs-p">Reads a requirements file (or inline text), implements it step-by-step, detects loops,
+                and asks for human guidance via a <strong>Human-in-the-Loop (HIL)</strong> modal when stuck.</p>
+
+              <h2 class="docs-h2">How it works</h2>
+              <div class="docs-flow" style="flex-wrap:wrap;gap:6px">
+                <div class="docs-flow-step">Read requirements</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">AI generates plan</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Implement step N</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Write files</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Loop detect?</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step success">REQUIREMENTS_COMPLETE</div>
+              </div>
+
+              <h2 class="docs-h2">Web UI</h2>
+              <ol class="docs-ol">
+                <li>Go to <strong>⚡ Vibe Coder → 🤖 Autonomous</strong> tab.</li>
+                <li>Enter a requirements file path or paste requirements text.</li>
+                <li>Optionally add rules (one per line) and set a time/step limit.</li>
+                <li>Click <strong>▶ Run</strong>. Progress streams live.</li>
+                <li>If a HIL event fires, a modal appears — type guidance and click <strong>Continue →</strong>.</li>
+              </ol>
+
+              <h2 class="docs-h2">Config reference</h2>
+              <pre class="docs-code"><code><span class="kw">interface</span> AutonomousConfig {
+  requirementsFile?:         string;   <span class="cm">// path to .md or .txt</span>
+  requirementsContent?:      string;   <span class="cm">// inline text</span>
+  rules?:                    Rule[];   <span class="cm">// constraints per step</span>
+  timeLimitSeconds?:         number;   <span class="cm">// 0 = no limit</span>
+  maxSteps?:                 number;   <span class="cm">// default 50</span>
+  stuckThreshold?:           number;   <span class="cm">// default 3</span>
+  loopWindowSize?:           number;   <span class="cm">// default 4</span>
+  loopSimilarityThreshold?:  number;   <span class="cm">// default 0.85</span>
+}</code></pre>
+
+              <h2 class="docs-h2">Events</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Payload</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>step</code></td>
+                      <td><code>StepResult</code></td>
+                      <td>Step completed</td>
+                    </tr>
+                    <tr>
+                      <td><code>complete</code></td>
+                      <td><code>StepResult[]</code></td>
+                      <td>All steps done</td>
+                    </tr>
+                    <tr>
+                      <td><code>hil</code></td>
+                      <td><code>HILRequest</code></td>
+                      <td>Needs human guidance</td>
+                    </tr>
+                    <tr>
+                      <td><code>error</code></td>
+                      <td><code>Error</code></td>
+                      <td>Fatal error</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <!-- live-debugger -->
+            <article class="docs-article" data-doc="live-debugger">
+              <h1 class="docs-title">🔍 Live Debugger</h1>
+              <p class="docs-p">Tails log sources (files, Docker, processes, HTTP), batches lines, sends them to AI for
+                analysis. Deduplicates repeated errors. Results stream to the Web UI in real time via Socket.IO.</p>
+
+              <h2 class="docs-h2">Flow</h2>
+              <div class="docs-flow" style="flex-wrap:wrap;gap:6px">
+                <div class="docs-flow-step">Log source</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Filter (level/pattern)</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Line buffer</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">Deduplicate</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step">AI analysis</div>
+                <div class="docs-flow-arrow">→</div>
+                <div class="docs-flow-step success">Web UI + Actions</div>
+              </div>
+
+              <h2 class="docs-h2">CLI</h2>
+              <pre class="docs-code"><code>ai-agent debug [options]
+
+  <span class="cm"># Source (one required)</span>
+  -f, --file &lt;path&gt;           watch a log file
+  -d, --docker &lt;container&gt;    attach to Docker stdout/stderr
+  -c, --cmd &lt;command&gt;         spawn a process
+
+  <span class="cm"># Filtering</span>
+  --log-level &lt;levels&gt;        e.g. ERROR,FATAL
+  --log-pattern &lt;patterns&gt;    comma-separated regex
+
+  <span class="cm"># Batching</span>
+  --batch &lt;n&gt;                 lines per AI call (default 20)
+  --retry &lt;n&gt;                 max retries (default 3)
+
+  <span class="cm"># Notifications</span>
+  --notify-slack &lt;url&gt;        Slack webhook
+  --notify-teams &lt;url&gt;        Teams webhook
+
+  <span class="cm"># Web UI</span>
+  --ui                        launch dashboard
+  --port &lt;port&gt;               dashboard port (default 3000)</code></pre>
+
+              <h2 class="docs-h2">Error deduplication</h2>
+              <p class="docs-p">The same error fingerprint is never sent to the AI twice. Repeated occurrences show an
+                <span style="color:var(--warning);font-weight:600">amber badge</span> on the analysis card and increment
+                a counter. No extra AI cost.</p>
+
+              <h2 class="docs-h2">Dashboard tab</h2>
+              <p class="docs-p">The <strong>Dashboard</strong> tab inside a debugger session shows: unique error count,
+                suppressed repeat count, total events, and a bar chart of the top errors by repeat count.</p>
+
+              <h2 class="docs-h2">Actions per analysis</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Button</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Create Jira Issue</td>
+                      <td>Files a Jira ticket with the AI analysis as description</td>
+                    </tr>
+                    <tr>
+                      <td>Apply Git Fix</td>
+                      <td>Commits AI-proposed code changes directly to GitHub via API</td>
+                    </tr>
+                    <tr>
+                      <td>Assign to Copilot</td>
+                      <td>Creates a GitHub issue and assigns the Copilot coding agent</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Apply Git Fix — 3-step wizard</h2>
+              <ol class="docs-ol">
+                <li><strong>Configure</strong> — enter Token, Remote URL, Branch, PR Title.</li>
+                <li><strong>Preview Changes</strong> — side-by-side diff of every file the AI wants to modify.</li>
+                <li><strong>Apply</strong> — commits directly to GitHub via the Git Data API, no local git needed.</li>
+              </ol>
+              <div class="docs-callout info">Provide a <strong>GitHub token</strong> and <strong>Remote URL</strong> to
+                use the GitHub API path. Repo Path is only needed for the local-git fallback.</div>
+
+              <h2 class="docs-h2">Socket.IO events</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Direction</th>
+                      <th>Payload</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>debugger:analysis</code></td>
+                      <td>Server → Client</td>
+                      <td><code>{ sessionId, analysis, meta }</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>debugger:log</code></td>
+                      <td>Server → Client</td>
+                      <td><code>{ sessionId, line }</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>debugger:error-repeated</code></td>
+                      <td>Server → Client</td>
+                      <td><code>{ turnId, repeatCount, lastSeen }</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>debugger:subscribe</code></td>
+                      <td>Client → Server</td>
+                      <td><code>{ sessionId }</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <!-- sessions -->
+            <article class="docs-article" data-doc="sessions">
+              <h1 class="docs-title">💾 Session Manager</h1>
+              <p class="docs-p">Sessions persist conversation history (turns), file changes, and debugger metadata to
+                disk. They can be resumed, exported, and deleted.</p>
+
+              <h2 class="docs-h2">REST API</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Method</th>
+                      <th>Path</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/api/sessions</code></td>
+                      <td>List all sessions</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/api/sessions/:id</code></td>
+                      <td>Get session detail + turns</td>
+                    </tr>
+                    <tr>
+                      <td><code>POST</code></td>
+                      <td><code>/api/sessions</code></td>
+                      <td>Create a new session</td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE</code></td>
+                      <td><code>/api/sessions/:id</code></td>
+                      <td>Delete one session</td>
+                    </tr>
+                    <tr>
+                      <td><code>DELETE</code></td>
+                      <td><code>/api/sessions</code></td>
+                      <td>Delete all sessions</td>
+                    </tr>
+                    <tr>
+                      <td><code>GET</code></td>
+                      <td><code>/api/sessions/:id/export</code></td>
+                      <td>Export session as JSON</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Session turn object</h2>
+              <pre class="docs-code"><code>{
+  id:               string,
+  timestamp:        string,      <span class="cm">// ISO</span>
+  userMessage:      string,
+  assistantMessage: string,
+  fileChanges?:     FileChange[],
+  usage?:           TokenUsage,
+  debuggerMeta?:    DebuggerTurnMeta
+}</code></pre>
+
+              <h2 class="docs-h2">Web UI</h2>
+              <ol class="docs-ol">
+                <li>Click <strong>Sessions</strong> in the sidebar to list all sessions.</li>
+                <li>Click a session row to view its turns and metadata.</li>
+                <li>Use <strong>↻ Refresh</strong> to reload, <strong>🗑 Clear All</strong> to wipe all sessions.</li>
+                <li>Use <strong>⬇ Export</strong> on the detail page to download the full session JSON.</li>
+              </ol>
+            </article>
+
+            <!-- providers -->
+            <article class="docs-article" data-doc="providers">
+              <h1 class="docs-title">🧠 AI Providers</h1>
+              <p class="docs-p">fusion-agent supports three AI providers. Switch providers per session or globally in
+                config.</p>
+
+              <div class="docs-provider-grid">
+                <div class="docs-provider-card">
+                  <div class="docs-provider-logo">🟢</div>
+                  <div class="docs-provider-name">OpenAI</div>
+                  <div class="docs-provider-models">gpt-4o, gpt-4o-mini, gpt-4-turbo, o1-mini</div>
+                  <pre class="docs-code" style="margin-top:8px"><code>export OPENAI_API_KEY=sk-...</code></pre>
+                </div>
+                <div class="docs-provider-card">
+                  <div class="docs-provider-logo">🟠</div>
+                  <div class="docs-provider-name">Anthropic</div>
+                  <div class="docs-provider-models">claude-3-5-sonnet-20241022, claude-3-haiku-20240307</div>
+                  <pre class="docs-code" style="margin-top:8px"><code>export ANTHROPIC_API_KEY=sk-ant-...</code></pre>
+                </div>
+                <div class="docs-provider-card">
+                  <div class="docs-provider-logo">🔵</div>
+                  <div class="docs-provider-name">Google Gemini</div>
+                  <div class="docs-provider-models">gemini-1.5-pro, gemini-1.5-flash, gemini-2.0-flash</div>
+                  <pre class="docs-code" style="margin-top:8px"><code>export GEMINI_API_KEY=AIza...</code></pre>
+                </div>
+              </div>
+
+              <h2 class="docs-h2">Streaming</h2>
+              <p class="docs-p">All providers support streaming. Pass <code>stream: true</code> and <code>onChunk</code>
+                to <code>session.chat()</code> to receive tokens as they arrive.</p>
+
+              <h2 class="docs-h2">Token limits &amp; auto-truncation</h2>
+              <p class="docs-p">The live debugger auto-detects token limits from 429 responses and truncates future
+                prompts automatically. Set <code>--log-token-limit &lt;n&gt;</code> to override.</p>
+            </article>
+
+            <!-- integrations -->
+            <article class="docs-article" data-doc="integrations">
+              <h1 class="docs-title">🔗 Integrations</h1>
+
+              <h2 class="docs-h2">Git Fix (GitHub API)</h2>
+              <p class="docs-p">Commits AI-proposed code changes directly to GitHub without a local clone using the Git
+                Data API.</p>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>Required</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Token</td>
+                      <td>✓</td>
+                      <td>GitHub PAT with <code>repo</code> scope</td>
+                    </tr>
+                    <tr>
+                      <td>Remote URL</td>
+                      <td>✓</td>
+                      <td><code>https://github.com/owner/repo</code></td>
+                    </tr>
+                    <tr>
+                      <td>Branch</td>
+                      <td>—</td>
+                      <td>Target branch (default: <code>fusion-agent/auto-fix</code>)</td>
+                    </tr>
+                    <tr>
+                      <td>Base Branch</td>
+                      <td>—</td>
+                      <td>Base for PR (default: <code>main</code>)</td>
+                    </tr>
+                    <tr>
+                      <td>PR Title</td>
+                      <td>—</td>
+                      <td>If set, a pull request is opened automatically</td>
+                    </tr>
+                    <tr>
+                      <td>Repo Path</td>
+                      <td>—</td>
+                      <td>Local path — only needed when token is absent</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Jira</h2>
+              <p class="docs-p">Creates a Jira issue from a live debugger analysis turn.</p>
+              <pre class="docs-code"><code><span class="cm">// POST /api/debugger/:sessionId/jira</span>
+{
+  jiraConfig: {
+    baseUrl:    <span class="str">"https://your-org.atlassian.net"</span>,
+    email:      <span class="str">"you@example.com"</span>,
+    apiToken:   <span class="str">"..."</span>,
+    projectKey: <span class="str">"ENG"</span>,
+    issueType:  <span class="str">"Bug"</span>
+  },
+  turnId: <span class="str">"turn-abc123"</span>,
+  summary: <span class="str">"Optional custom title"</span>
+}</code></pre>
+
+              <h2 class="docs-h2">GitHub Copilot Agent</h2>
+              <p class="docs-p">Creates a GitHub issue and assigns the Copilot coding agent via
+                <code>agent_assignment</code>.</p>
+              <pre class="docs-code"><code><span class="cm">// In .fusion-agent.json</span>
+{
+  <span class="str">"github"</span>: {
+    <span class="str">"token"</span>: <span class="str">"ghp_..."</span>,
+    <span class="str">"repoUrl"</span>: <span class="str">"https://github.com/org/repo"</span>,
+    <span class="str">"autoAssignCopilot"</span>: <span class="kw">true</span>
+  }
+}</code></pre>
+              <div class="docs-callout warning">When <code>autoAssignCopilot</code> is enabled, the Apply Git Fix action
+                is blocked to avoid conflicting PRs.</div>
+            </article>
+
+            <!-- guardrails -->
+            <article class="docs-article" data-doc="guardrails">
+              <h1 class="docs-title">🛡 Guardrails</h1>
+              <p class="docs-p">Guardrails are safety rules that gate file writes, git commits, and Copilot issue
+                creation.</p>
+
+              <h2 class="docs-h2">File / Git guardrail rules</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Rule format</th>
+                      <th>Effect</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>allow-path:src/</code></td>
+                      <td>Only files under <code>src/</code> may be modified</td>
+                    </tr>
+                    <tr>
+                      <td><code>deny-path:secrets/</code></td>
+                      <td>Files under <code>secrets/</code> are never touched</td>
+                    </tr>
+                    <tr>
+                      <td><code>max-files:5</code></td>
+                      <td>At most 5 files per commit</td>
+                    </tr>
+                    <tr>
+                      <td><code>Use TypeScript strict mode</code></td>
+                      <td>Custom rule injected as AI constraint</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Copilot issue guardrails</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Rule format</th>
+                      <th>Effect</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>deny-keyword:password</code></td>
+                      <td>Block if title or body contains the word</td>
+                    </tr>
+                    <tr>
+                      <td><code>require-label:bug</code></td>
+                      <td>Issue must include the <code>bug</code> label</td>
+                    </tr>
+                    <tr>
+                      <td><code>max-title-length:120</code></td>
+                      <td>Issue title must be ≤ 120 chars</td>
+                    </tr>
+                    <tr>
+                      <td><code>max-body-length:5000</code></td>
+                      <td>Issue body must be ≤ 5000 chars</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Adding guardrails</h2>
+              <pre class="docs-code"><code><span class="cm"># CLI</span>
+ai-agent chat --guardrail <span class="str">"deny-path:secrets/"</span> --guardrail <span class="str">"max-files:5"</span>
+
+<span class="cm"># Programmatic</span>
+const session = agent.createSession({
+  guardrails: [createGuardrail(<span class="str">'custom'</span>, <span class="str">'Use TypeScript strict mode'</span>)]
+});</code></pre>
+            </article>
+
+            <!-- speckits -->
+            <article class="docs-article" data-doc="speckits">
+              <h1 class="docs-title">🎭 Speckits</h1>
+              <p class="docs-p">Speckits are prebuilt agent personas — a name, description, system prompt, and example
+                prompts. They are set when creating a session and shape the AI's behaviour for the entire session.</p>
+
+              <h2 class="docs-h2">Built-in speckits</h2>
+              <div class="docs-table-wrap">
+                <table class="docs-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Best for</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>vibe-coder</code></td>
+                      <td>General coding, file generation, refactoring</td>
+                    </tr>
+                    <tr>
+                      <td><code>debugger</code></td>
+                      <td>Log analysis, root cause, code fixes</td>
+                    </tr>
+                    <tr>
+                      <td><code>code-review</code></td>
+                      <td>PR review, security, performance feedback</td>
+                    </tr>
+                    <tr>
+                      <td><code>cluster-debugger</code></td>
+                      <td>Kubernetes / multi-service remediation</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h2 class="docs-h2">Using a speckit</h2>
+              <pre class="docs-code"><code><span class="cm"># CLI</span>
+ai-agent chat --speckit debugger
+
+<span class="cm"># Programmatic</span>
+agent.createSession({ speckit: <span class="str">'code-review'</span> });</code></pre>
+
+              <h2 class="docs-h2">Custom speckits</h2>
+              <pre class="docs-code"><code><span class="kw">import</span> { registerSpeckit } <span class="kw">from</span> <span class="str">'fusion-agent'</span>;
+
+registerSpeckit({
+  name: <span class="str">'security-auditor'</span>,
+  description: <span class="str">'Reviews code for OWASP Top 10 vulnerabilities'</span>,
+  systemPrompt: <span class="str">`You are a security expert...`</span>,
+  examples: [<span class="str">'Review this Express route for SQL injection'</span>],
+});</code></pre>
+            </article>
+
+          </div><!-- /docs-content -->
+        </div><!-- /docs-layout -->
+      </section><!-- /page-docs -->
+
     </main>
   </div>
 
@@ -312,12 +1122,21 @@
 
   <!-- Git Fix Modal -->
   <div id="git-modal" class="modal-overlay hidden">
-    <div class="modal-box">
+    <div class="modal-box modal-box-wide">
       <div class="modal-header">
         <h2>⚙ Apply Git Fix</h2>
+        <div class="git-step-indicator">
+          <span id="git-step-1-pill" class="git-step-pill active">1 Configure</span>
+          <span class="git-step-sep">›</span>
+          <span id="git-step-2-pill" class="git-step-pill">2 Review Changes</span>
+          <span class="git-step-sep">›</span>
+          <span id="git-step-3-pill" class="git-step-pill">3 Apply</span>
+        </div>
         <button id="git-modal-close" class="btn btn-ghost">✕</button>
       </div>
-      <div class="modal-body">
+
+      <!-- Step 1: configure -->
+      <div id="git-step-1" class="modal-body git-step-body">
         <div class="form-group">
           <label for="git-repo-path">Repo Path</label>
           <input type="text" id="git-repo-path" placeholder="/path/to/your/repo" />
@@ -355,10 +1174,28 @@
           <textarea id="git-guardrails" class="vibe-textarea" rows="3"
             placeholder="One guardrail rule per line"></textarea>
         </div>
+        <div class="modal-footer">
+          <button id="git-cancel-btn" class="btn btn-ghost" style="margin-right:8px">Cancel</button>
+          <button id="git-preview-btn" class="btn btn-primary">Preview Changes →</button>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button id="git-cancel-btn" class="btn btn-ghost" style="margin-right:8px">Cancel</button>
-        <button id="git-submit-btn" class="btn btn-primary">Apply Fix</button>
+
+      <!-- Step 2: diff review -->
+      <div id="git-step-2" class="modal-body git-step-body hidden">
+        <div id="git-diff-loading" class="git-diff-loading hidden">Loading changes…</div>
+        <div id="git-diff-list"></div>
+        <div class="modal-footer">
+          <button id="git-back-btn" class="btn btn-ghost" style="margin-right:8px">← Back</button>
+          <button id="git-submit-btn" class="btn btn-primary">Apply Fix ✓</button>
+        </div>
+      </div>
+
+      <!-- Step 3: result -->
+      <div id="git-step-3" class="modal-body git-step-body hidden">
+        <div id="git-result-content" class="git-result-content"></div>
+        <div class="modal-footer">
+          <button id="git-done-btn" class="btn btn-primary">Done</button>
+        </div>
       </div>
     </div>
   </div>

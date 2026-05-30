@@ -1,6 +1,4 @@
-import fs from 'fs';
 import os from 'os';
-import path from 'path';
 import { EventEmitter } from 'events';
 import { extractFileBlocks, detectCompletion } from '../src/vibe-coder/file-parser';
 import { LoopDetector, jaccardSimilarity } from '../src/vibe-coder/loop-detector';

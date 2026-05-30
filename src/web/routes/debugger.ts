@@ -1,9 +1,61 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { SessionManager } from '../../session/session-manager';
 import { JiraClient } from '../../integrations/jira';
-import { GitPatchApplier, GitHubClient } from '../../integrations/git';
+import { GitPatchApplier, GitHubClient, GitHubPatcher } from '../../integrations/git';
 import { extractFileBlocks } from '../../vibe-coder/file-parser';
 import { logger } from '../../utils/logger';
+
+/**
+ * Fallback parser: extract plain ``` code blocks when the AI didn't use the
+ * `language:filepath` convention. Infers the filename from:
+ *  1. A preceding heading line containing a path-like token, e.g.
+ *     `#### Fixed Code (src/services/foo.ts)` or `### src/services/foo.ts`
+ *  2. The first comment line inside the block: `// src/path/to/file.ts`
+ *  3. If nothing matches, labels the block "fix-N.txt"
+ */
+function extractFallbackBlocks(text: string): Array<{ filePath: string; content: string }> {
+  const results: Array<{ filePath: string; content: string }> = [];
+  // Split into segments around ``` fences so we can look at the text before each block
+  const parts = text.split(/(```[\w.+-]*\n[\s\S]*?```)/g);
+  let blockIndex = 0;
+
+  for (let i = 0; i < parts.length; i++) {
+    const fenceMatch = parts[i].match(/^```[\w.+-]*\n([\s\S]*?)```$/);
+    if (!fenceMatch) continue;
+
+    const content = fenceMatch[1];
+    blockIndex++;
+
+    // Look for a path-like token in the preceding ~3 lines of surrounding text
+    let filePath = '';
+    const preceding = parts[i - 1] ?? '';
+    const precedingLines = preceding.split('\n').slice(-4);
+
+    for (const line of precedingLines.reverse()) {
+      // Match something that looks like a file path: contains / or . with an extension
+      const pathMatch = line.match(/([`'"]?)([\w./\\-]+\.\w{1,10})\1/);
+      if (pathMatch) {
+        filePath = pathMatch[2].replace(/^[`'"]+|[`'"]+$/g, '');
+        break;
+      }
+    }
+
+    // Also check first comment line inside the block
+    if (!filePath) {
+      const firstLine = content.split('\n')[0].trim();
+      const commentMatch = firstLine.match(/^(?:\/\/|#|--)\s*([\w./\\-]+\.\w{1,10})/);
+      if (commentMatch) filePath = commentMatch[1];
+    }
+
+    if (!filePath) filePath = `fix-${blockIndex}.txt`;
+
+    results.push({ filePath, content });
+  }
+
+  return results;
+}
 
 /**
  * REST endpoints for Live Debugger actions (Jira tickets, Git fixes).
@@ -105,6 +157,70 @@ export function createDebuggerRoutes(sessionManager: SessionManager): Router {
     }
   });
 
+  // ── POST /api/debugger/:sessionId/preview-git-fix ────────────────────────
+  // Returns the file blocks parsed from the AI analysis plus, when repoPath is
+  // supplied, the current on-disk content so the UI can render a before/after diff.
+  router.post('/:sessionId/preview-git-fix', async (req: Request, res: Response) => {
+    try {
+      const { sessionId } = req.params;
+      const { turnId, repoPath } = req.body as { turnId?: string; repoPath?: string };
+
+      const sessionData = JSON.parse(sessionManager.exportSession(sessionId)) as {
+        turns: Array<{ id: string; assistantMessage: string }>;
+      };
+
+      const turn = turnId
+        ? sessionData.turns.find((t) => t.id === turnId)
+        : sessionData.turns[sessionData.turns.length - 1];
+
+      if (!turn) {
+        res.status(404).json({ error: 'Turn not found' });
+        return;
+      }
+
+      const blocks = extractFileBlocks(turn.assistantMessage);
+
+      // Fallback: also parse plain ``` code blocks and attempt to infer a
+      // filename from a preceding heading or comment line like:
+      //   #### Fixed Code (`src/foo/bar.ts`) or  // src/foo/bar.ts
+      const fallbackBlocks = blocks.length === 0
+        ? extractFallbackBlocks(turn.assistantMessage)
+        : [];
+
+      const allBlocks = [...blocks, ...fallbackBlocks];
+      if (allBlocks.length === 0) {
+        res.status(422).json({ error: 'No file code blocks found in the AI analysis for this turn' });
+        return;
+      }
+
+      const changes = allBlocks.map((block) => {
+        let before: string | null = null;
+        if (repoPath) {
+          try {
+            const abs = path.resolve(repoPath, block.filePath);
+            // Guard against path traversal
+            const resolved = path.resolve(repoPath);
+            if (abs.startsWith(resolved + path.sep) || abs === resolved) {
+              before = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : null;
+            }
+          } catch {
+            before = null;
+          }
+        }
+        return {
+          filePath: block.filePath,
+          before,          // null = new file
+          after: block.content,
+        };
+      });
+
+      res.json({ changes });
+    } catch (err) {
+      logger.error(`Debugger preview-git-fix route error: ${err}`);
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // ── POST /api/debugger/:sessionId/git-fix ────────────────────────────────
   router.post('/:sessionId/git-fix', async (req: Request, res: Response) => {
     try {
@@ -125,8 +241,8 @@ export function createDebuggerRoutes(sessionManager: SessionManager): Router {
         baseBranch?: string;
       };
 
-      if (!gitConfig?.repoPath) {
-        res.status(400).json({ error: 'gitConfig.repoPath is required' });
+      if (!gitConfig?.repoPath && !(gitConfig?.token && gitConfig?.remoteUrl)) {
+        res.status(400).json({ error: 'Either gitConfig.repoPath (local) or gitConfig.token + gitConfig.remoteUrl (GitHub API) is required' });
         return;
       }
 
@@ -177,14 +293,28 @@ export function createDebuggerRoutes(sessionManager: SessionManager): Router {
         files[block.filePath] = block.content;
       }
 
-      const patcher = new GitPatchApplier(gitConfig);
-      const result = await patcher.applyAndCommit({
-        files,
-        commitMessage: customMessage ?? `fix: apply AI-suggested fix from live debugger (session ${sessionId})`,
-        pullRequestTitle: prTitle,
-        pullRequestBody: prBody,
-        baseBranch,
-      });
+      // Use GitHub API patcher when token + remoteUrl are available (no local git needed).
+      // Fall back to local GitPatchApplier only when repoPath is given without a token.
+      let result: import('../../integrations/git').GitPatchResult;
+      if (gitConfig.token && gitConfig.remoteUrl) {
+        const patcher = new GitHubPatcher(gitConfig);
+        result = await patcher.applyAndCommit({
+          files,
+          commitMessage: customMessage ?? `fix: apply AI-suggested fix from live debugger (session ${sessionId})`,
+          pullRequestTitle: prTitle,
+          pullRequestBody: prBody,
+          baseBranch,
+        });
+      } else {
+        const patcher = new GitPatchApplier(gitConfig);
+        result = await patcher.applyAndCommit({
+          files,
+          commitMessage: customMessage ?? `fix: apply AI-suggested fix from live debugger (session ${sessionId})`,
+          pullRequestTitle: prTitle,
+          pullRequestBody: prBody,
+          baseBranch,
+        });
+      }
 
       // Persist the fix URL on the turn's debuggerMeta
       try {
@@ -234,10 +364,23 @@ export function createDebuggerRoutes(sessionManager: SessionManager): Router {
         bypassGuardrails?: boolean;
       };
 
-      if (!githubConfig?.token || !githubConfig?.repoUrl) {
-        res.status(400).json({ error: 'githubConfig.token and githubConfig.repoUrl are required' });
+      const effectiveGithubConfig = {
+        ...(githubConfig ?? {}),
+        token: githubConfig?.token || process.env.GITHUB_TOKEN || process.env.GH_TOKEN,
+        repoUrl: githubConfig?.repoUrl || process.env.GITHUB_REPO_URL || process.env.REPO_URL,
+        assignee:
+          githubConfig?.assignee || process.env.GITHUB_COPILOT_ASSIGNEE || process.env.COPILOT_ASSIGNEE,
+      };
+
+      if (!effectiveGithubConfig.token || !effectiveGithubConfig.repoUrl) {
+        res.status(400).json({
+          error:
+            'githubConfig.token and githubConfig.repoUrl are required (or set GITHUB_TOKEN and GITHUB_REPO_URL in environment)',
+        });
         return;
       }
+
+      const resolvedGithubConfig = effectiveGithubConfig as import('../../integrations/git').GitHubConfig;
 
       const sessionData = JSON.parse(sessionManager.exportSession(sessionId)) as {
         turns: Array<{ id: string; assistantMessage: string; userMessage: string; debuggerMeta?: { matchedLogLines?: string[]; promptSentAt?: string } }>;
@@ -264,7 +407,7 @@ export function createDebuggerRoutes(sessionManager: SessionManager): Router {
         `### AI Analysis\n${turn.assistantMessage}`;
       const issueLabels = labels ?? [];
 
-      const client = new GitHubClient(githubConfig);
+      const client = new GitHubClient(resolvedGithubConfig);
 
       // Evaluate guardrails unless the caller explicitly bypasses them
       if (!bypassGuardrails) {
@@ -302,7 +445,35 @@ export function createDebuggerRoutes(sessionManager: SessionManager): Router {
       res.json(result);
     } catch (err) {
       logger.error(`Debugger copilot-issue route error: ${err}`);
-      res.status(500).json({ error: String(err) });
+      const message = err instanceof Error ? err.message : String(err);
+      const ghMatch = message.match(/GitHub API error\s+(\d{3}):\s*(.+)$/i);
+      if (ghMatch) {
+        const statusCode = Number(ghMatch[1]);
+        const ghMessage = ghMatch[2];
+        if (statusCode === 403) {
+          res.status(403).json({
+            error:
+              'GitHub token cannot perform this action. Ensure the token has repository Issues write access (or classic repo scope) for the target repository.',
+            githubMessage: ghMessage,
+          });
+          return;
+        }
+        if (statusCode === 404) {
+          res.status(404).json({
+            error:
+              'GitHub repository was not found for this token. Verify githubConfig.repoUrl / GITHUB_REPO_URL and token repository access.',
+            githubMessage: ghMessage,
+          });
+          return;
+        }
+        res.status(Math.min(Math.max(statusCode, 400), 502)).json({
+          error: `GitHub API error ${statusCode}`,
+          githubMessage: ghMessage,
+        });
+        return;
+      }
+
+      res.status(500).json({ error: message });
     }
   });
 

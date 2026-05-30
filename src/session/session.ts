@@ -38,6 +38,12 @@ export interface DebuggerTurnMeta {
   gitFixUrl?: string;
   /** GitHub issue URL if the analysis was assigned to the Copilot coding agent */
   copilotIssueUrl?: string;
+  /** Number of times this same error fingerprint has been seen (1 = first occurrence) */
+  repeatCount?: number;
+  /** Normalised fingerprint used for deduplication */
+  errorFingerprint?: string;
+  /** ISO timestamp of the most-recent repetition */
+  lastSeenAt?: string;
 }
 
 export interface SessionTurn {
