@@ -29,6 +29,22 @@ Please be respectful and constructive in all interactions. We are committed to p
 - Add or update tests for any new behaviour.
 - Run `npm run lint` and fix any linting issues before opening a PR.
 
+## Pre-commit Hooks
+
+This project uses [Husky](https://typicode.github.io/husky) and [lint-staged](https://github.com/lint-staged/lint-staged) to enforce quality checks on every commit.
+
+After running `npm install`, the hooks are set up automatically via the `prepare` script. On each `git commit`, the following checks run against staged files:
+
+- **ESLint** — auto-fixes lint issues in `src/` and `tests/` TypeScript files.
+- **TypeScript** — runs `tsc --noEmit` to catch type errors across the project.
+
+If any check fails the commit is aborted. Fix the reported issues and commit again. You can also run the checks manually at any time:
+
+```bash
+npm run lint        # ESLint only
+npx tsc --noEmit    # Type-check only
+```
+
 ## Submitting a Pull Request
 
 1. Push your branch.
