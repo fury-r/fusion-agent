@@ -1,17 +1,98 @@
-# fusion-agent
+<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
 
-> ⚠️ **Package renamed:** The previous npm package has been deprecated and replaced by **`fusion-agent`**.  
+<a id="readme-top"></a>
+
+<!-- PROJECT SHIELDS -->
+
+[![npm version][npm-shield]][npm-url]
+[![Downloads][downloads-shield]][downloads-url]
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![MIT License][license-shield]][license-url]
+
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/fury-r/fusion-agent">
+    <img src="https://img.shields.io/badge/fusion--agent-🤖-6C63FF?style=for-the-badge&labelColor=1a1a2e" alt="fusion-agent logo" height="60">
+  </a>
+
+  <h3 align="center">fusion-agent</h3>
+
+  <p align="center">
+    AI-powered vibe coder, live service debugger, autonomous agent &amp; session manager
+    <br />
+    <a href="https://fusion-agent-docs.netlify.app/"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="#quick-start">Quick Start</a>
+    &middot;
+    <a href="https://github.com/fury-r/fusion-agent/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    &middot;
+    <a href="https://github.com/fury-r/fusion-agent/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+  </p>
+</div>
+
+> ⚠️ **Package renamed:** The previous npm package has been deprecated and replaced by **`fusion-agent`**.
 > Please install the new package: `npm install -g fusion-agent`
-
-An AI-powered **vibe coder**, **live service debugger**, **autonomous agent**, and **session manager** — deployable as a CLI or importable as a TypeScript library.
-
-Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming responses.
-
-📖 **[Full Documentation](https://fusion-agent-docs.netlify.app/)**
 
 ---
 
-## Features
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#built-with">Built With</a></li>
+      </ul>
+    </li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#quick-start">Quick Start</a></li>
+    <li><a href="#cli-reference">CLI Reference</a></li>
+    <li><a href="#speckits">Speckits</a></li>
+    <li><a href="#guardrails">Guardrails</a></li>
+    <li><a href="#configuration-file">Configuration File</a></li>
+    <li><a href="#web-ui">Web UI</a></li>
+    <li><a href="#library--programmatic-api">Library / Programmatic API</a></li>
+    <li><a href="#use-cases--new-features">Use Cases</a></li>
+    <li><a href="#end-to-end-examples">End-to-End Examples</a></li>
+    <li><a href="#rest-api-reference-web-ui-backend">REST API Reference</a></li>
+    <li><a href="#providers--models">Providers &amp; Models</a></li>
+    <li><a href="#live-debugger--error-handling--resilience">Resilience</a></li>
+    <li><a href="#development">Development</a></li>
+    <li><a href="#live-debugger--docker-test-stack">Docker Test Stack</a></li>
+    <li><a href="#license">License</a></li>
+  </ol>
+</details>
+
+---
+
+<!-- ABOUT THE PROJECT -->
+
+## About The Project
+
+**fusion-agent** is an AI-powered toolkit deployable as a CLI or importable as a TypeScript library. It supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming responses and packages four major capabilities:
+
+- 🤖 **Vibe Coder** — AI pair-programmer with autonomous mode, loop detection and human-in-the-loop escalation
+- 🔍 **Live Debugger** — attach to running services, get real-time AI analysis, file Jira tickets, push git fixes and delegate to GitHub Copilot
+- 🤝 **Agent Bus** — multiple autonomous agents exchange messages in-process via `<agent>` blocks
+- 🌐 **Web UI** — built-in dashboard with session viewer, vibe-coder chat, autonomous control panel and debugger detail view
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+### Features
 
 | Feature                             | Description                                                                                                                                    |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -34,9 +115,29 @@ Supports **OpenAI**, **Anthropic**, and **Google Gemini** with streaming respons
 | 🌐 Web UI                           | Built-in web dashboard — session viewer, **interactive Vibe Coder chat**, **Autonomous Mode control panel**, and **Live Debugger detail view** |
 | 📚 Library API                      | Importable TypeScript module for programmatic use                                                                                              |
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
-## Architecture & Flow
+### Built With
+
+[![Node.js][nodejs-shield]][nodejs-url]
+[![TypeScript][typescript-shield]][typescript-url]
+[![OpenAI][openai-shield]][openai-url]
+[![Anthropic][anthropic-shield]][anthropic-url]
+[![Gemini][gemini-shield]][gemini-url]
+[![Socket.io][socketio-shield]][socketio-url]
+[![Docker][docker-shield]][docker-url]
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+<!-- ARCHITECTURE -->
+
+## Architecture
+
+The diagram below shows how the CLI, Web UI, Library API, AI providers, log sources, integrations and real-time push layer connect:
 
 ### High-Level Architecture
 
@@ -95,7 +196,7 @@ flowchart TD
     SM --> Storage[(💾 ~/.fusion-agent/\nsessions)]
 ```
 
----
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Chat Session Flow
 
@@ -126,7 +227,7 @@ sequenceDiagram
     SM-->>U: Session saved ✓
 ```
 
----
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Live Debugger Flow (with `--ui`)
 
@@ -174,7 +275,7 @@ flowchart LR
     LF -->|real-time line| WebUI
 ```
 
----
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Autonomous Vibe Coder Flow
 
@@ -219,9 +320,23 @@ sequenceDiagram
     end
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
-## Installation
+<!-- GETTING STARTED -->
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** v18 or later
+- An API key for at least one provider:
+  - [OpenAI](https://platform.openai.com/api-keys) → `OPENAI_API_KEY`
+  - [Anthropic](https://console.anthropic.com/) → `ANTHROPIC_API_KEY`
+  - [Google Gemini](https://aistudio.google.com/app/apikey) → `GEMINI_API_KEY`
+
+### Installation
 
 ```bash
 # Global install (recommended for CLI use)
@@ -231,7 +346,11 @@ npm install -g fusion-agent
 npm install --save-dev fusion-agent
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
+
+<!-- QUICK START -->
 
 ## Quick Start
 
@@ -271,7 +390,11 @@ ai-agent ui
 # Open http://localhost:3000
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
+
+<!-- CLI REFERENCE -->
 
 ## CLI Reference
 
@@ -459,6 +582,8 @@ ai-agent cron enable <id>                        # Resume a paused job
 
 Schedules use standard cron syntax (powered by [node-cron](https://github.com/node-cron/node-cron)). Jobs are persisted to `~/.fusion-agent/cron.json` and restored automatically when the web server starts.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## Speckits
@@ -478,6 +603,8 @@ Speckits are pre-configured agent personas. Use `--speckit <name>` with `chat`.
 ```bash
 ai-agent chat --speckit security-audit
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
@@ -532,6 +659,8 @@ Git-specific guardrails are passed in `gitConfig.guardrails` and operate on the 
 | `deny-path:<prefix>`  | `deny-path:secrets/` | Files under this prefix are blocked from modification |
 | `max-files:<n>`       | `max-files:5`        | Commit is rejected if it touches more than N files    |
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## Configuration File
@@ -559,6 +688,8 @@ AI_PROVIDER=openai
 AI_MODEL=gpt-4o
 AI_AGENT_PORT=3000
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
@@ -709,6 +840,8 @@ Configure the default AI provider and model used by the Web UI.
 ### Real-time updates
 
 All pages use Socket.IO — streaming tokens, file-change notifications, live log lines, and AI analysis cards update in real time without page refresh.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
@@ -1206,6 +1339,8 @@ await server.start();
 // server.io is a Socket.IO Server instance — pass to LiveDebugger for real-time pushes
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## Use Cases — New Features
@@ -1512,6 +1647,8 @@ cron.addJob("nightly-status-check", "0 3 * * *", "status-monitor", {
 });
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## End-to-End Examples
@@ -1726,6 +1863,8 @@ process.on("SIGINT", () => {
 });
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## REST API Reference (Web UI Backend)
@@ -1754,6 +1893,8 @@ When the web server is running these endpoints are available in addition to the 
 | `POST`   | `/api/cron`                              | Create a new cron job                                            |
 | `DELETE` | `/api/cron/:id`                          | Remove a cron job                                                |
 | `PATCH`  | `/api/cron/:id`                          | Enable or disable a cron job (`{enabled: boolean}`)              |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### `POST /api/debugger/:sessionId/jira`
 
@@ -1862,6 +2003,8 @@ The issued URL is stored on the turn's `debuggerMeta.copilotIssueUrl` and expose
 
 > **Important:** When `autoAssignCopilot` is `true`, the live debugger does **not** attempt to apply a git fix itself. It files the issue and hands off entirely to the Copilot coding agent. If you also want fusion-agent to apply a fix directly, leave `autoAssignCopilot` unset and use the **⚙ Apply Git Fix** button (or `git-fix` API) manually.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## GitHub Copilot Coding Agent integration (`GitHubClient`)
@@ -1895,6 +2038,8 @@ const result = await gh.createIssueForCopilot(
 console.log("Issue opened and assigned to Copilot:", result.issueUrl);
 ````
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## Providers & Models
@@ -1904,6 +2049,8 @@ console.log("Issue opened and assigned to Copilot:", result.issueUrl);
 | OpenAI        | `OPENAI_API_KEY`    | `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`                    |
 | Anthropic     | `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022` |
 | Google Gemini | `GEMINI_API_KEY`    | `gemini-1.5-pro`, `gemini-1.5-flash`                      |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
@@ -1932,6 +2079,8 @@ debugger_.on("error", (err) => {
 });
 ```
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## Development
@@ -1944,6 +2093,8 @@ npm run build
 npm test
 npm run dev -- chat   # run CLI in dev mode
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
@@ -1997,6 +2148,8 @@ OPENAI_API_KEY=sk-... TEAMS_WEBHOOK_URL=https://... ./start.sh debug --provider 
 
 The `cluster-debug-rules.yaml` in the same directory configures the rules and notification settings used by the debugger.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
 
 ## Web UI — Real-time Session Updates
@@ -2005,8 +2158,81 @@ The Web UI tracks external changes to session files automatically. When a live d
 
 Each call to `GET /api/sessions/:id` always reads the latest data from disk — there is no stale in-memory cache — so page refreshes and re-opens are always consistent.
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ---
+
+<!-- LICENSE -->
 
 ## License
 
-MIT
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for more information.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+<!-- CONTRIBUTING -->
+
+## Contributing
+
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag `enhancement`.
+Don't forget to give the project a star! Thanks again!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+<!-- ACKNOWLEDGMENTS -->
+
+## Acknowledgments
+
+- [node-cron](https://github.com/node-cron/node-cron) — cron scheduling
+- [Socket.IO](https://socket.io/) — real-time bidirectional communication
+- [Commander.js](https://github.com/tj/commander.js/) — CLI framework
+- [othneildrew/Best-README-Template](https://github.com/othneildrew/Best-README-Template) — README template
+- [Shields.io](https://shields.io) — badges
+- [Choose an Open Source License](https://choosealicense.com)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+<!-- MARKDOWN LINKS & IMAGES -->
+
+[npm-shield]: https://img.shields.io/npm/v/fusion-agent.svg?style=for-the-badge
+[npm-url]: https://www.npmjs.com/package/fusion-agent
+[downloads-shield]: https://img.shields.io/npm/dm/fusion-agent.svg?style=for-the-badge
+[downloads-url]: https://www.npmjs.com/package/fusion-agent
+[contributors-shield]: https://img.shields.io/github/contributors/fury-r/fusion-agent.svg?style=for-the-badge
+[contributors-url]: https://github.com/fury-r/fusion-agent/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/fury-r/fusion-agent.svg?style=for-the-badge
+[forks-url]: https://github.com/fury-r/fusion-agent/network/members
+[stars-shield]: https://img.shields.io/github/stars/fury-r/fusion-agent.svg?style=for-the-badge
+[stars-url]: https://github.com/fury-r/fusion-agent/stargazers
+[issues-shield]: https://img.shields.io/github/issues/fury-r/fusion-agent.svg?style=for-the-badge
+[issues-url]: https://github.com/fury-r/fusion-agent/issues
+[license-shield]: https://img.shields.io/github/license/fury-r/fusion-agent.svg?style=for-the-badge
+[license-url]: https://github.com/fury-r/fusion-agent/blob/master/LICENSE
+[nodejs-shield]: https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white
+[nodejs-url]: https://nodejs.org/
+[typescript-shield]: https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white
+[typescript-url]: https://www.typescriptlang.org/
+[openai-shield]: https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white
+[openai-url]: https://openai.com/
+[anthropic-shield]: https://img.shields.io/badge/Anthropic-Claude-D97757?style=for-the-badge
+[anthropic-url]: https://anthropic.com/
+[gemini-shield]: https://img.shields.io/badge/Google-Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white
+[gemini-url]: https://deepmind.google/technologies/gemini/
+[socketio-shield]: https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socketdotio&logoColor=white
+[socketio-url]: https://socket.io/
+[docker-shield]: https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white
+[docker-url]: https://www.docker.com/
